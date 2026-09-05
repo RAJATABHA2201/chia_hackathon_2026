@@ -1,6 +1,10 @@
+`ifndef NUM_PE
+    `define NUM_PE 2
+`endif
+
 module tb_sparse_array;
 
-    parameter NUM_PE = 2;
+    parameter NUM_PE = `NUM_PE;
     parameter NUM_GROUPS = 8;
 
     logic clk;
@@ -21,6 +25,10 @@ module tb_sparse_array;
     logic signed [31:0] result;
     logic done;
 
+
+    // ============================================================
+    // DUT
+    // ============================================================
 
     sparse_array #(
         .DATA_WIDTH(8),
@@ -48,19 +56,35 @@ module tb_sparse_array;
     );
 
 
+    // ============================================================
+    // Clock
+    // ============================================================
+
     always #5 clk = ~clk;
 
+
+    // ============================================================
+    // Test
+    // ============================================================
 
     initial begin
 
         integer i;
+        integer cycles;
+        integer timeout;
 
         clk = 0;
         rst = 1;
         start = 0;
 
+        cycles = 0;
+        timeout = 0;
 
-        // Initialize everything
+
+        // --------------------------------------------------------
+        // Initialize arrays
+        // --------------------------------------------------------
+
         for (i = 0; i < NUM_GROUPS; i = i + 1) begin
 
             value0[i] = 0;
@@ -77,13 +101,18 @@ module tb_sparse_array;
         end
 
 
-        #10;
+        // --------------------------------------------------------
+        // Reset
+        // --------------------------------------------------------
+
+        repeat (2) @(posedge clk);
+
         rst = 0;
 
 
-        // ------------------------------------------------
-        // Eight sparse groups
-        // ------------------------------------------------
+        // ========================================================
+        // Sparse workload
+        // ========================================================
 
         // Group 0: 3*10 + 7*40 = 310
         value0[0] = 3;
@@ -157,18 +186,39 @@ module tb_sparse_array;
         b3[7] = 5;
 
 
-        // Total:
-        // 310 + 12 + 44 + 34 + 23 + 22 + 39 + 19
-        // = 503
+        // ========================================================
+        // Start computation
+        // ========================================================
 
-        #5;
+        // Wait for falling edge so start is not racing with clock
+        @(negedge clk);
+
         start = 1;
 
-        #10;
+        // Hold start for one complete clock cycle
+        @(negedge clk);
+
         start = 0;
 
-        #5;
 
+        // ========================================================
+        // Wait for DONE
+        // ========================================================
+
+        cycles = 0;
+
+        while (!done && cycles < 100) begin
+
+            @(posedge clk);
+
+            cycles = cycles + 1;
+
+        end
+
+
+        // ========================================================
+        // Results
+        // ========================================================
 
         $display("");
         $display("========================================");
@@ -180,20 +230,35 @@ module tb_sparse_array;
 
         $display("----------------------------------------");
 
+        $display("Cycles      = %0d", cycles);
         $display("Result      = %0d", result);
         $display("Expected    = 503");
 
         $display("----------------------------------------");
 
-        if (result == 503)
+
+        if (cycles >= 100) begin
+
+            $display("STATUS      = TIMEOUT");
+            $display("ERROR       = Hardware never asserted DONE");
+
+        end
+
+        else if (result == 503) begin
+
             $display("STATUS      = PASS");
-        else
+
+        end
+
+        else begin
+
             $display("STATUS      = FAIL");
+
+        end
+
 
         $display("========================================");
         $display("");
-
-        #10;
 
         $finish;
 
