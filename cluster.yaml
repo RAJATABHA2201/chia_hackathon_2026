@@ -1,0 +1,182 @@
+# SparseCraft single-machine cluster.
+#
+#   export THIS_MACHINE=$(hostname -I | awk '{print $1}')
+#   chia up  sparsecraft/cluster.yaml
+#   chia down sparsecraft/cluster.yaml
+#
+# Head runs natively in the chia_env conda env; EDA workers run in podman
+# containers (exposed as `docker` via ~/bin/docker, since CHIA's YAML parser
+# hardcodes engine="docker" and offers no engine: key).
+#
+# WORKER SIZING IS RAM-BOUND, NOT CORE-BOUND. This host has 64 cores but 30 GB
+# of RAM. A Chisel elaboration peaks at 8-12 GB; a Verilator *run* is 1-2 GB.
+# So: few containers, high resource counts -- one chipyard worker advertising
+# 2 units, one verilator worker advertising 12, rather than many containers.
+
+cluster_name: sparsecraft
+
+provider:
+    head_ip: ${THIS_MACHINE}
+
+auth:
+    ssh_user: ${USER}
+    ssh_private_key: ~/.ssh/id_ed25519
+
+available_node_types:
+
+    # T0 legality, T1 analytical model, scoring, archive, trace, the sealed MCP
+    # tools -- and N10, the model itself. No container: pure Python on the head.
+    #
+    # THE `llm` RESOURCE LIVES HERE ON PURPOSE. An API-key backend is an HTTPS
+    # client and nothing more; it needs the `openai` / `google-genai` packages,
+    # which are in chia_env and NOT in the EDA images. Advertising `llm` here
+    # means the agentic turn runs natively, so there are no credentials to mount
+    # into any container and no image to rebuild when a key changes. The EDA
+    # containers stay exactly as sealed as before -- the model's only write path
+    # is still the BashTool pinned to the chipyard bundle.
+    #
+    # The *_creds names are what CHIA's backend classes request by default
+    # (vertex_creds, openai_creds, ...). The loop overrides that with `llm` at
+    # dispatch, but advertising them keeps a direct
+    # `llm.prompt.chia_remote(...)` -- no .options() -- schedulable too.
+    head_local:
+        resources: {"head_local": 8, "llm": 2, "openai_creds": 2,
+                    "vertex_creds": 2, "anthropic_creds": 2}
+        num_workers: 1
+        compatible_ips: ["${THIS_MACHINE}"]
+        worker_env_commands:
+            - "source ~/.bashrc && conda activate chia_env"
+
+    # N30/N31 Chisel elaboration + Verilator build, and N32 kernel compile
+    # (which needs the elaboration-generated gemmini_params.h, so it lives here
+    # rather than on the riscv_build worker).
+    chipyard:
+        resources: {"chipyard": 2}
+        num_workers: 1
+        compatible_ips: ["${THIS_MACHINE}"]
+        worker_env_commands:
+            - "cd /home/ray/chipyard && source env.sh"
+        docker:
+            image: "ghcr.io/ucb-bar/chia-chisel-build:latest"
+            container_name: "sparsecraft-chipyard-${USER}"
+            pull_before_run: False      # pre-pulled; this image is ~16 GB
+            pull_timeout: 7200
+            run_options:
+                - --ulimit nofile=65536:65536
+                - --shm-size=4gb
+
+    # N50 T2a functional simulation. MUST stay a separate image from the
+    # builder: simulator binaries are linked against libriscv.so/libdramsim.so
+    # from the chipyard image, and this image ships byte-identical copies.
+    # libriscv.so IS the golden model.
+    verilator:
+        resources: {"verilator_run": 12}
+        num_workers: 1
+        compatible_ips: ["${THIS_MACHINE}"]
+        docker:
+            image: "ghcr.io/ucb-bar/chia-verilator-run:latest"
+            container_name: "sparsecraft-verilator-${USER}"
+            pull_before_run: False
+            run_options:
+                - --ulimit nofile=65536:65536
+                - --shm-size=4gb
+
+    # N52 T3 physical synthesis -- area and Fmax, measured rather than modelled.
+    #
+    # CHIA ships no synthesis image, so this one is ours:
+    # docker/SparseCraftSynthDockerfile, built by docker/build.sh. It is the
+    # stock chia-chisel-build image (which ALREADY contains hammer-vlsi 1.2.0
+    # and every plugin) plus the two things hammer only drives and the base
+    # image lacks: the yosys/openroad binaries, and the NanGate45 PDK.
+    #
+    # ADVERTISES 1, NOT MORE, and that is a RAM decision like every other
+    # worker here. yosys+abc on a 16x16 Gemmini mesh peaks around 6-10 GB; a
+    # concurrent Chisel elaboration is already claiming 8-12 GB of the 30 GB on
+    # this host. One at a time is the honest ceiling.
+    hammer:
+        resources: {"hammer": 1}
+        num_workers: 1
+        compatible_ips: ["${THIS_MACHINE}"]
+        worker_env_commands:
+            - "cd /home/ray/chipyard && source env.sh"
+        docker:
+            image: "localhost/sparsecraft-synth:latest"
+            container_name: "sparsecraft-hammer-${USER}"
+            pull_before_run: False      # built locally; there is no registry copy
+            run_options:
+                - --ulimit nofile=65536:65536
+                - --shm-size=4gb
+
+    # The CLI-backed proposer, for SPARSECRAFT_LLM_BACKEND=opencode only.
+    #
+    # COMMENTED OUT BY DEFAULT, and that is the point of the rewiring above: the
+    # API-key backends run natively on head_local, so a first run does not have
+    # to start a 5.6 GB container or mount a credential anywhere. Uncomment this
+    # whole block only if you actually want the OpenCode CLI to drive the model
+    # -- and move "llm" out of head_local's resources when you do, or Ray will
+    # schedule the agentic turn on whichever pool it finds first.
+    #
+    # llm_cli:
+    #     resources: {"llm": 2, "opencode_creds": 2}
+    #     num_workers: 1
+    #     compatible_ips: ["${THIS_MACHINE}"]
+    #     docker:
+    #         image: "ghcr.io/ucb-bar/chia-opencode:latest"
+    #         container_name: "sparsecraft-llm-${USER}"
+    #         pull_before_run: False
+    #         run_options:
+    #             - --ulimit nofile=65536:65536
+    #             - "--user $(id -u):$(id -g)"
+    #     run_setup_commands:
+    #         - echo "user:x:$(id -u):$(id -g)::/home/ray:/bin/bash" >> /etc/passwd
+    #         - mkdir -p /home/ray/llm_env
+
+    # Durable store. Diffs, transcripts and metrics land here the moment they
+    # are produced -- incremental archival, so a mid-run kill keeps everything
+    # logged so far rather than only an end-of-run tar.
+    database:
+        resources: {"database": 2}
+        num_workers: 1
+        compatible_ips: ["${THIS_MACHINE}"]
+        worker_env_commands:
+            - "source ~/.bashrc && conda activate chia_env"
+
+    # Standalone cross-compilation for kernels that do not need the generated
+    # Gemmini header (golden-reference generators, canary payloads).
+    riscv_build:
+        resources: {"riscv_build": 4}
+        num_workers: 1
+        compatible_ips: ["${THIS_MACHINE}"]
+        docker:
+            image: "ghcr.io/ucb-bar/chia-riscv-cross:latest"
+            container_name: "sparsecraft-riscv-${USER}"
+            pull_before_run: False
+            run_options:
+                - --ulimit nofile=65536:65536
+
+file_mounts: {}
+
+rsync_exclude:
+    - "**/.git"
+    - "**/.git/**"
+
+rsync_filter:
+    - ".gitignore"
+
+initialization_commands: []
+setup_commands: []
+
+head_env_commands:
+    - "source ~/.bashrc && conda activate chia_env"
+
+head_start_ray_commands:
+    - "source ~/.bashrc && conda activate chia_env && ray stop"
+    - "source ~/.bashrc && conda activate chia_env && ulimit -c unlimited && \
+       mkdir -p /tmp/${USER}_ray && \
+       ray start --head --port=6379 --include-dashboard=True \
+       --dashboard-port=8265 --dashboard-agent-listen-port=0 \
+       --temp-dir=/tmp/${USER}_ray"
+
+worker_start_ray_commands:
+    - "ray stop"
+    - "ray start --address=$RAY_HEAD_IP:6379 --dashboard-agent-listen-port=0"

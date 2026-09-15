@@ -1,0 +1,51 @@
+# Infrastructure smoke test: head + the one image already pulled.
+# Validates ssh-to-self, the docker->podman shim, Ray head in chia_env, and a
+# Ray worker starting INSIDE a podman container -- everything except the
+# 16 GB chipyard image.
+cluster_name: sparsecraft-smoke
+
+provider:
+    head_ip: ${THIS_MACHINE}
+
+auth:
+    ssh_user: ${USER}
+    ssh_private_key: ~/.ssh/id_ed25519
+
+available_node_types:
+    head_local:
+        resources: {"head_local": 8}
+        num_workers: 1
+        compatible_ips: ["${THIS_MACHINE}"]
+        worker_env_commands:
+            - "source ~/.bashrc && conda activate chia_env"
+
+    verilator:
+        resources: {"verilator_run": 12}
+        num_workers: 1
+        compatible_ips: ["${THIS_MACHINE}"]
+        docker:
+            image: "ghcr.io/ucb-bar/chia-verilator-run:latest"
+            container_name: "sparsecraft-smoke-verilator-${USER}"
+            pull_before_run: False
+            run_options:
+                - --ulimit nofile=65536:65536
+                - --shm-size=2gb
+
+file_mounts: {}
+initialization_commands: []
+setup_commands: []
+
+head_env_commands:
+    - "source ~/.bashrc && conda activate chia_env"
+
+head_start_ray_commands:
+    - "source ~/.bashrc && conda activate chia_env && ray stop"
+    - "source ~/.bashrc && conda activate chia_env && ulimit -c unlimited && \
+       mkdir -p /tmp/${USER}_ray && \
+       ray start --head --port=6379 --include-dashboard=True \
+       --dashboard-port=8265 --dashboard-agent-listen-port=0 \
+       --temp-dir=/tmp/${USER}_ray"
+
+worker_start_ray_commands:
+    - "ray stop"
+    - "ray start --address=$RAY_HEAD_IP:6379 --dashboard-agent-listen-port=0"

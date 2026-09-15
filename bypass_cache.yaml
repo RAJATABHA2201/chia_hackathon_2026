@@ -1,0 +1,51 @@
+# Cache (write path) and bypass (read path), both keyed on _chia_tag.
+# The cache never auto-serves: bypass is what turns a hit into a served result,
+# which is how a run fast-forwards through work it already did.
+#
+# Tags set by loop.py:
+#   elaborate      -> hw:<hw_hash>
+#   build_kernel   -> sw:<sw_hash>
+#   simulate       -> sim:<sw_hash>
+#   synthesize     -> syn:<hw_hash>@<tech>@<clock_ns>
+#
+# Elaboration carries TWO tag families, not one. `hw:` is a simulator-only
+# build; `hwsrc:` is the same build with collect_generated_src and chipyard's
+# ENABLE_YOSYS_FLOW on, which produces different (yosys-readable) Verilog. They
+# are different artifacts of the same design state and must never satisfy each
+# other's cache lookups.
+#
+# Synthesis is keyed on hw_hash, NOT sw_hash: area and Fmax are properties of
+# the hardware alone, so every software-only mutation reuses one synthesis run.
+# The technology and clock target are in the key because changing either
+# changes the measurement.
+#
+# The split is the point: a tiling-only mutation changes sw_hash but not
+# hw_hash, so it reuses the elaborated RTL and skips the 20-40 minute build.
+
+cache:
+  elaborate:
+    cache: true
+    tags: ["hw:.*", "hwsrc:.*"]
+  build_kernel:
+    cache: true
+    tags: ["sw:.*"]
+  simulate:
+    cache: true
+    tags: ["sim:.*"]
+  synthesize:
+    cache: true
+    tags: ["syn:.*"]
+
+bypass:
+  elaborate:
+    bypass: true
+    tags: ["hw:.*", "hwsrc:.*"]
+  build_kernel:
+    bypass: true
+    tags: ["sw:.*"]
+  simulate:
+    bypass: true
+    tags: ["sim:.*"]
+  synthesize:
+    bypass: true
+    tags: ["syn:.*"]
