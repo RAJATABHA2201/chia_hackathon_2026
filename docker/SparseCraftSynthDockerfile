@@ -1,0 +1,185 @@
+# SparseCraft synthesis image -- the T3 tier.
+#
+# CHIA ships no synthesis dockerfile, so this is ours. It is a thin layer on top
+# of the stock chia build image, which ALREADY contains hammer-vlsi 1.2.0 (at
+# /home/ray/chipyard/.conda-env/bin/hammer-vlsi) together with every hammer
+# plugin we need -- hammer.synthesis.yosys, hammer.par.openroad,
+# hammer.technology.nangate45 / sky130 / asap7.
+#
+# What the stock image is missing is the two things hammer only *drives*:
+#   1. the tool binaries  -- yosys (synthesis), openroad (place & route)
+#   2. a PDK              -- standard-cell LEF/Liberty/GDS to map onto
+#
+# This layer adds both, and nothing else. Everything already in the base image
+# (chipyard, sbt, firtool, verilator, the riscv toolchain) is untouched, so this
+# image is a drop-in superset: it can serve the `chipyard` node type, the
+# `verilator_run` node type and the new `hammer` node type interchangeably.
+#
+# Build (from the sparsecraft directory):
+#
+#     ./docker/build.sh
+#
+# or by hand:
+#
+#     podman build -f docker/SparseCraftSynthDockerfile \
+#         -t localhost/sparsecraft-synth:latest .
+#
+ARG BASE_IMAGE=ghcr.io/ucb-bar/chia-chisel-build:latest
+FROM ${BASE_IMAGE}
+
+USER ray
+ENV HOME=/home/ray
+WORKDIR /home/ray
+
+# Where this layer puts things. Kept out of /home/ray/chipyard so that a
+# chipyard submodule update can never clobber the PDK, and out of
+# chipyard/.conda-env so the litex-hub tool solve can never perturb the
+# carefully pinned chipyard environment.
+ENV SPARSECRAFT_EDA_PREFIX=/home/ray/eda
+ENV SPARSECRAFT_PDK_ROOT=/home/ray/pdk
+
+# ---------------------------------------------------------------------------
+# 1. Open-source EDA binaries, in their own conda prefix.
+#
+# litex-hub is the channel the OpenROAD/Chipyard ecosystem publishes prebuilt
+# yosys / openroad / klayout to; building any of them from source would add
+# hours. They go in a SEPARATE prefix (not chipyard's .conda-env) precisely so
+# the solver never has to reconcile them against chipyard's pins.
+# ---------------------------------------------------------------------------
+# Each tool gets its OWN prefix. This is what chipyard's own VLSI docs do, and
+# the reason is solver risk, not tidiness: yosys, openroad and klayout pin
+# mutually incompatible versions of tcl/boost/qt often enough that a single
+# combined solve is the most likely way for this build to fail. Three
+# independent solves cannot conflict, and each is small.
+RUN /home/ray/conda/bin/conda create -y -p ${SPARSECRAFT_EDA_PREFIX}/yosys \
+        -c litex-hub -c conda-forge yosys \
+    && ${SPARSECRAFT_EDA_PREFIX}/yosys/bin/yosys -V
+
+RUN /home/ray/conda/bin/conda create -y -p ${SPARSECRAFT_EDA_PREFIX}/openroad \
+        -c litex-hub -c conda-forge openroad \
+    && ${SPARSECRAFT_EDA_PREFIX}/openroad/bin/openroad -version
+
+# klayout is BEST-EFFORT, and the only tool in this image that is. litex-hub's
+# klayout pins qt >=5.9.7,<5.10, which conda-forge no longer carries, so this
+# solve fails on today's channels. It is allowed to: klayout is a GDS
+# viewer/streamout and DRC engine, and the T3 tier measures area and slack --
+# neither of which touches GDS. A marker file records the outcome so
+# synth_node can tell "not installed" from "installed and broken".
+RUN if /home/ray/conda/bin/conda create -y -p ${SPARSECRAFT_EDA_PREFIX}/klayout \
+        -c litex-hub -c conda-forge klayout ; then \
+        echo "klayout: installed" > ${SPARSECRAFT_EDA_PREFIX}/klayout.status ; \
+    else \
+        rm -rf ${SPARSECRAFT_EDA_PREFIX}/klayout ; \
+        mkdir -p ${SPARSECRAFT_EDA_PREFIX} ; \
+        echo "klayout: NOT installed (litex-hub pins qt<5.10; unresolvable on \
+current channels). GDS streamout and DRC are unavailable; syn and STA are not \
+affected." > ${SPARSECRAFT_EDA_PREFIX}/klayout.status ; \
+    fi \
+    && cat ${SPARSECRAFT_EDA_PREFIX}/klayout.status \
+    && /home/ray/conda/bin/conda clean -afy
+
+# ---------------------------------------------------------------------------
+# 2. The NanGate45 PDK.
+#
+# hammer.technology.nangate45 wants a directory containing nangate45/{lef,lib,
+# gds}; that is exactly the layout of OpenROAD-flow-scripts' platform dir. We
+# take only that path (sparse checkout, blobless) -- the full repo is ~1 GB,
+# this slice is ~10 MB.
+#
+# The base image sets a global `url."git@github.com:".insteadOf
+# https://github.com/` rewrite so that runtime pulls use a forwarded SSH agent.
+# There is no agent at build time, so the rewrite is lifted for this clone and
+# restored immediately afterwards.
+# ---------------------------------------------------------------------------
+ARG ORFS_REPO=https://github.com/The-OpenROAD-Project/OpenROAD-flow-scripts.git
+ARG ORFS_REF=master
+RUN set -eux; \
+    git config --global --unset-all url."git@github.com:".insteadOf; \
+    git clone --depth 1 --branch ${ORFS_REF} --filter=blob:none --sparse \
+        ${ORFS_REPO} /tmp/orfs; \
+    git -C /tmp/orfs sparse-checkout set flow/platforms/nangate45; \
+    echo "=== nangate45 provenance ==="; \
+    git -C /tmp/orfs rev-parse HEAD; \
+    mkdir -p ${SPARSECRAFT_PDK_ROOT}; \
+    cp -r /tmp/orfs/flow/platforms/nangate45 ${SPARSECRAFT_PDK_ROOT}/nangate45; \
+    rm -rf /tmp/orfs; \
+    git config --global url."git@github.com:".insteadOf "https://github.com/"; \
+    test -f ${SPARSECRAFT_PDK_ROOT}/nangate45/lef/NangateOpenCellLibrary.tech.lef; \
+    test -f ${SPARSECRAFT_PDK_ROOT}/nangate45/lef/NangateOpenCellLibrary.macro.lef; \
+    test -f ${SPARSECRAFT_PDK_ROOT}/nangate45/lib/NangateOpenCellLibrary_typical.lib; \
+    test -f ${SPARSECRAFT_PDK_ROOT}/nangate45/gds/NangateOpenCellLibrary.gds; \
+    du -sh ${SPARSECRAFT_PDK_ROOT}/nangate45
+
+# ---------------------------------------------------------------------------
+# 3. Sky130, optional second technology.
+#
+# open_pdks.sky130a is the prebuilt sky130A tree (the README's from-source
+# open_pdks build is a ~42 GB, multi-hour affair; this is the same output in a
+# conda package). Gated behind an ARG because it roughly triples this layer's
+# download. The loop defaults to nangate45; sky130 is here so a second
+# technology point costs a config swap rather than an image rebuild.
+# ---------------------------------------------------------------------------
+ARG WITH_SKY130=1
+RUN if [ "${WITH_SKY130}" = "1" ]; then \
+        /home/ray/conda/bin/conda create -y -p ${SPARSECRAFT_PDK_ROOT}/.sky130 \
+            -c litex-hub -c conda-forge open_pdks.sky130a magic netgen \
+        && /home/ray/conda/bin/conda clean -afy \
+        && ln -sfn ${SPARSECRAFT_PDK_ROOT}/.sky130/share/pdk/sky130A \
+                   ${SPARSECRAFT_PDK_ROOT}/sky130A \
+        && test -d ${SPARSECRAFT_PDK_ROOT}/sky130A/libs.ref \
+        && du -sh ${SPARSECRAFT_PDK_ROOT}/.sky130 ; \
+    else \
+        echo "WITH_SKY130=0: skipping sky130 PDK" ; \
+    fi
+
+# ---------------------------------------------------------------------------
+# 4. PATH.
+#
+# The base image's .bashrc ends by sourcing chipyard's env.sh, which PREPENDS
+# chipyard's .conda-env to PATH. So the EDA prefix has to be appended AFTER
+# that line, not set via ENV -- an ENV PATH here would be shadowed for every
+# login shell. ChiselBuildNode and HammerNode both run through
+# `subprocess.run(shell=True)`, i.e. a login shell, so .bashrc is the
+# authoritative place.
+#
+# The EDA prefix is appended, not prepended: chipyard's own python, gcc and
+# verilator must keep winning. Only names that exist ONLY in the EDA prefix
+# (yosys, openroad, klayout) resolve out of it.
+# ---------------------------------------------------------------------------
+RUN { \
+      echo ''; \
+      echo '# --- sparsecraft synthesis layer ---'; \
+      echo 'export SPARSECRAFT_EDA_PREFIX=/home/ray/eda'; \
+      echo 'export SPARSECRAFT_PDK_ROOT=/home/ray/pdk'; \
+      echo 'export NANGATE45_INSTALL_DIR=/home/ray/pdk'; \
+      echo 'export SKY130A=/home/ray/pdk/sky130A'; \
+      echo 'export PATH="$PATH:/home/ray/eda/yosys/bin:/home/ray/eda/openroad/bin:/home/ray/eda/klayout/bin"'; \
+    } >> /home/ray/.bashrc
+
+# ---------------------------------------------------------------------------
+# 4b. Repair two defects in the released hammer 1.2.0.
+#
+# See docker/patch_hammer.py for what is wrong and why each fix is safe. Run
+# under CHIPYARD's interpreter by absolute path, not `python`: that is the
+# interpreter whose site-packages holds the file being edited, and relying on
+# PATH here would edit whichever python a login shell happened to resolve.
+# ---------------------------------------------------------------------------
+COPY --chown=1000:100 docker/nangate45_latch_map.v ${SPARSECRAFT_PDK_ROOT}/nangate45_latch_map.v
+COPY --chown=1000:100 docker/patch_hammer.py /home/ray/patch_hammer.py
+RUN /home/ray/chipyard/.conda-env/bin/python /home/ray/patch_hammer.py
+
+# ---------------------------------------------------------------------------
+# 5. Self-test, baked in.
+#
+# A build that "succeeds" and then fails on the first real synthesis 40 minutes
+# into a loop run is worse than a build that fails now, so the image proves at
+# build time that hammer can actually drive yosys against the PDK.
+# ---------------------------------------------------------------------------
+# Numeric uid:gid, not names. Rootless podman resolves --chown against the
+# HOST's group database, where there is no `ray` group, and fails the COPY.
+# In this image ray is uid 1000, gid 100 (users).
+COPY --chown=1000:100 docker/selftest.sh /home/ray/sparsecraft-selftest.sh
+RUN chmod +x /home/ray/sparsecraft-selftest.sh && /home/ray/sparsecraft-selftest.sh
+
+USER ray
+WORKDIR /home/ray
