@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# SparseCraft generated output (see constants.py: RUN_DIR, CACHE_DIR)
+runs/
+cache/
+
+# Editor / OS cruft
+.DS_Store
+*.swp
+
+# Logs
+*.log
