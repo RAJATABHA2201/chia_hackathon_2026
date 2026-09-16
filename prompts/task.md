@@ -1,9 +1,13 @@
 # This iteration
 
-You are editing a live Chipyard tree inside the build container. Use the bash
-tool; every command runs with cwd `${CHIPYARD}`.
+Propose one coherent mutation to the Gemmini design state that answers the
+diagnosis below, and write it into `SparseCraftParams.scala`.
 
-## The one file you may change
+## Where you work
+
+Every command runs with cwd `${CHIPYARD}`, inside the build container.
+
+The one file you may change:
 
 ```
 ${PARAMS_PATH}
@@ -37,6 +41,9 @@ ${PARENT_STATE}
 
 ## Measured feedback from the last iteration
 
+This is the concrete artifact your mutation has to answer. Read it before
+choosing a lever.
+
 ```
 ${DIAGNOSIS}
 ```
@@ -51,6 +58,8 @@ ${DIAGNOSIS}
    and the iteration is scored against the wrong design.
 4. Keep every field explicit. Do not collapse the config back to
    `GemminiConfigs.leanConfig` — the file should read as the complete design point.
+5. End your turn with the `==MUTATION==` and `==PREDICTION==` sections the
+   system prompt requires.
 
 Do **not** build, elaborate, or run Verilator yourself. The loop does that after
 your turn, and doing it by hand burns the container's build lock.

@@ -19,6 +19,66 @@ Say in a comment what you changed and the mechanism you expect — the harness
 records it against the measured result, so a stated prediction that turns out
 wrong is more useful than an unstated one.
 
+## How this loop works
+
+You work in a sealed loop. Each turn you change the design state in
+`SparseCraftParams.scala`. When you end your turn, the harness automatically:
+
+1. checks your patch against the scope allowlist, then the T0 legality rules;
+2. elaborates the config and builds a Verilator simulator;
+3. cross-compiles the attention kernel against the generated `gemmini_params.h`;
+4. runs it and reads Gemmini's hardware counters back;
+5. scores the result and either admits it to the Pareto front or does not.
+
+Success is **Pareto admission on (time, energy, area)**, not "it built" and not
+"a test passed". A design that builds and runs but is dominated on all three
+axes has not advanced the search.
+
+## Environment
+
+- The design lives in a chipyard checkout at `/home/ray/chipyard`, inside the
+  build container. Every bash command you run is rooted there.
+- The one file that expresses the design:
+  `generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala` — a
+  `GemminiArrayConfig` built with `GemminiConfigs.defaultConfig.copy(...)`.
+- `generators/chipyard/src/main/scala/config/SparseCraftConfigs.scala` is
+  harness scaffolding. It is written for you and is **not** yours to edit.
+- Elaboration is expensive: 20–40 minutes and 8–12 GB, and RAM caps the cluster
+  at about two concurrent elaborations. A wasted build is the most expensive
+  thing you can do here — far more expensive than thinking longer.
+
+## SCOPE
+
+`SparseCraftParams.scala` is your **entire writable set**. A patch-scope
+allowlist runs over `git status` before your diff is collected; touching
+anything else rejects the iteration and resets the tree, with no evaluation.
+
+Specifically, and by name — do not do any of these, they are checked:
+
+- Do not edit the golden reference, the equivalence checker, or the tolerance
+  configuration.
+- Do not edit the objective weights, the T0 rule set, or the metric-extraction
+  scripts. You never see them as data you could change.
+- Do not edit the benchmark or workload selection, or the harness config
+  `SparseCraftConfigs.scala`.
+- Do not change Verilator warning flags, assertion severities, or simulation
+  timeouts.
+- Do not set `has_normalizations` to false to dodge a constraint.
+- Do not shrink the array, scratchpad or accumulator in order to make a
+  diagnostic number look better.
+- Do not reduce off-chip bytes by short-circuiting the kernel. An
+  information-theoretic tripwire rejects any design whose off-chip byte count
+  falls below one full read of the inputs.
+
+If the diagnosis you were handed cannot be acted on with the levers below,
+**say so and stop**. "This diagnosis is not actionable with the available
+levers" is a complete, correct outcome and is recorded as one. It is strictly
+better than a mutation you cannot justify, which costs 20–40 minutes to
+discover.
+
+This is one step of an automated pipeline — **there is no human to ask.** Work
+autonomously and end your turn when the mutation is in place.
+
 ## The three objectives
 
 `t` = time (cycles × period — **not** cycles), `E` = energy, `A` = area.
@@ -74,6 +134,23 @@ The diagnosis names a bottleneck from measured counters:
 | cycles up, MAC count unchanged | reuse loss, not compute loss | check off-chip bytes before touching the array |
 | area up, cycles down, `cycles × period` flat | you bought nothing | L2 was the wrong move |
 
+**How to read movement across iterations.** Judge a mutation by the counter it
+targeted, not by the aggregate score.
+
+- A correct move can leave the objective flat when a second bottleneck masks
+  it. Check whether the counter you aimed at actually moved before concluding
+  the mechanism was wrong.
+- The score going *down* can still mean progress if the counter you targeted
+  improved — you may have exposed a bottleneck that was previously hidden.
+- The score going *up* is not proof your mechanism worked; something else may
+  have moved coincidentally. Confirm against the counter.
+- If a parameter keeps bouncing X → Y → X across iterations, stop tuning it.
+  Pull the history, read the two states side by side, and change a different
+  lever.
+- Designs on the front that are not your ancestors are evidence about what has
+  worked elsewhere in the search — a hypothesis worth borrowing, not a result
+  you inherit.
+
 ## Tools
 
 Three read-only pull tools. Prefer pulling over asking for more context: the
@@ -92,3 +169,53 @@ chipyard tree inside the build container.
 
 There is no `compare()` and no `query_density()`. To compare two designs, pull
 `query_history` and read the two metric rows.
+
+## Warnings
+
+These are facts about this container and this harness, not about accelerator
+design. They cost whole iterations when ignored.
+
+- **Issue at most one tool call per turn.** Do not emit multiple tool-use
+  blocks in one response, even when they look independent. The MCP
+  streamable-HTTP transport drops the second-and-later results on the same
+  session: the server returns 200 on an empty stream and the turn then waits
+  forever for results that never arrive. Wait for one result before issuing the
+  next call.
+- **Do not grep the chipyard root.** It is >10 GB with build artifacts and will
+  hang the bash tool. Start inside a specific generator, e.g.
+  `/home/ray/chipyard/generators/gemmini/`.
+- Stderr-silencing redirects are fine — `2>/dev/null`, `>/dev/null`, `2>&1` are
+  not treated as writes.
+- **Do not run `git commit`.** The loop captures your diff from working-tree
+  state.
+- **Do not build, elaborate, or run Verilator yourself.** The loop does that
+  after your turn, and doing it by hand burns the container's build lock and
+  20–40 minutes.
+
+## Required output format
+
+End your response with exactly these two sections. The literal strings
+`==MUTATION==` and `==PREDICTION==` must appear **only** as section headers —
+do not mention them in your reasoning above.
+
+```
+### ==MUTATION==
+The parameters you changed, each as `name: old -> new`. One line each.
+If you changed nothing because the diagnosis was not actionable, write
+"NONE" and one line saying which lever you would have needed.
+
+### ==PREDICTION==
+The mechanism you expect, in one or two sentences: which counter moves, in
+which direction, and why that follows from the parameter change.
+Then the predicted direction on each objective, one line each:
+  time:   better | worse | flat
+  energy: better | worse | flat
+  area:   better | worse | flat
+If this is one step of a coupled move whose first step regresses, name the
+plan_id you are reusing and say which step this is.
+```
+
+The harness records your prediction against the measured result. A stated
+prediction that turns out wrong is more useful than an unstated one — it is how
+the loop learns which mechanisms you model well. Do not hedge every axis to
+"flat" to avoid being wrong.

@@ -1,6 +1,6 @@
 # Chisel Debugging Textbook
 
-*Comprehensive reference for debugging Chisel designs. Covers Chisel-universal traps, pipelined processor debugging methodology, BOOM-specific insights, and toolchain behaviors.*
+*Comprehensive reference for debugging Chisel designs. Covers Chisel-universal traps, pipelined accelerator debugging methodology, and toolchain behaviors.*
 
 ---
 
@@ -299,51 +299,15 @@ The most common wasted-time patterns:
 
 ---
 
-## 7. BOOM-Specific Insights
+## 7. Design Patterns for Correctness
 
-### 7.1 I-Cache resp.valid is NOT a Miss Indicator
-
-In BOOM's frontend, `icache.io.resp.valid` deasserts not only on true I-cache misses but also during refill beats when `io.req.ready := !refill_one_beat`. Using `!resp.valid` as a miss indicator causes false activation on nearly every cycle, producing 50-100x cycle inflation.
-
-**Rule**: To detect a true I-cache miss, check MSHR allocation or refill state — not `resp.valid` negation.
-
-### 7.2 IQ Dispatch Livelock from Cross-IQ Stalling
-
-When dynamically resizing instruction queue capacity, do NOT stall ALL dispatch when ANY single IQ exceeds its effective limit. If the MEM IQ is full but INT IQ has space, blocking INT dispatch prevents forward progress on non-memory instructions, creating a livelock.
-
-**Rule**: Limit ROB occupancy (a single shared resource) rather than per-IQ dispatch. ROB limiting constrains the instruction window without creating cross-IQ dependency deadlocks.
-
-### 7.3 Prefetcher Config Enablement
-
-`enablePrefetching` defaults differ across BOOM configs:
-- **SmallBoom**: `false` → `NullPrefetcher` (no-op)
-- **Medium/Large/MegaBoom**: `true` → `NLPrefetcher` (next-line)
-
-**Rule**: Before implementing a feature-gated module, check the target config's existing defaults. Test on a config that already enables the feature (MegaBoom for prefetchers). If no existing config enables the feature, create a dedicated test config rather than modifying a shared one.
-
-### 7.4 Counting Bloom Filter Pitfalls (LSU)
-
-Counting Bloom filters have three subtle false-negative failure modes:
-
-1. **Bulk clear of surviving entries**: On exception, committed stores survive but their BF entries are destroyed. New loads get false negatives. **Fix**: Only clear entries for killed operations; decrement surviving entries individually.
-
-2. **Multi-port same-cycle collisions**: Multiple inserts to the same BF position lose information via Chisel last-connect-wins. Subsequent individual removals cause counter underflow. **Fix**: Use per-caller-group `Vec[Bool]` Wires summed with widening adds (`+&`).
-
-3. **Counter saturation**: Small counters overflow under pathological hash distribution. **Fix**: Size counter width so `2^width` exceeds the maximum possible entries per position.
-
-**Config sensitivity**: SmallBoom (memWidth=1) hides multi-port collision bugs. Always test on MegaBoom (memWidth=2) for structures with concurrent access.
-
----
-
-## 8. Design Patterns for Correctness
-
-### 8.1 Module Replacement: Preserve Fallback Behavior
+### 7.1 Module Replacement: Preserve Fallback Behavior
 
 When replacing a module with a new implementation, always replicate the original module's core behavior as a fallback path. New module = original behavior + new behavior, not just new behavior. The new functionality augments; it does not replace the baseline until proven beneficial.
 
 This also simplifies debugging: if the combined module matches baseline, the original-behavior path is correct and any remaining bugs are isolated to the new logic.
 
-### 8.2 Cold-Start Protection for Learned Predictors
+### 7.2 Cold-Start Protection for Learned Predictors
 
 Predictors that learn from runtime observations are dangerous during cold start: their tables contain uninitialized data or trivial signatures that spuriously match. A false prediction from an untrained predictor can be catastrophic (e.g., a dead-block predictor that evicts live cache blocks creates a positive feedback loop).
 
@@ -353,7 +317,7 @@ Two complementary defenses:
 
 **Rule**: Any predictor that acts on learned state must have both defenses. Size the warmup period to exceed the predictor's table fill time.
 
-### 8.3 Resource-Aware Prefetch Rate Limiting
+### 7.3 Resource-Aware Prefetch Rate Limiting
 
 Prefetch engines that can issue multiple requests per trigger event must be rate-limited relative to available MSHRs. Without rate limiting, prefetches monopolize MSHRs, starving demand misses and causing livelock.
 
@@ -361,7 +325,7 @@ The failure mode is configuration-dependent: a prefetcher that works on MegaBoom
 
 **Rule**: Never allow prefetch traffic to consume more than `nMSHRs / 2` entries simultaneously. Test on the smallest available config (fewest MSHRs) to catch monopolization.
 
-### 8.4 Speculative Eviction Loop Detection
+### 7.4 Speculative Eviction Loop Detection
 
 Any mechanism that evicts instructions from a primary structure to a side buffer and later reinjects them must guarantee **no reinsertion loops**. The failure mode is distinctive: extreme cycle inflation (100–2500x) with no data corruption.
 
@@ -372,11 +336,11 @@ Common loop triggers:
 
 **Rule**: Before implementing any eviction-reinsertion mechanism, prove that the eviction predicate is *strictly monotonically resolved* — once cleared, it cannot reassert without a new triggering event.
 
-### 8.5 Baseline Re-collection for Performance-Changing Optimizations
+### 7.5 Baseline Re-collection for Performance-Changing Optimizations
 
 When the optimization is expected to change cycle counts (prefetchers, predictors, accelerators), DIFF results on the first test run are expected behavior, not bugs. Re-collect baselines with the optimization-enabled simulator before classifying DIFFs as failures.
 
-### 8.6 Zero-Bug Implementation Patterns
+### 7.6 Zero-Bug Implementation Patterns
 
 Five patterns consistently produce zero-bug implementations:
 
@@ -388,7 +352,7 @@ Five patterns consistently produce zero-bug implementations:
 
 **Rule**: Aim for patterns 1–3 by design. Recognize patterns 4–5 as false confidence — synthesize targeted benchmarks that exercise the optimization's trigger conditions before claiming correctness.
 
-### 8.7 Combined Observational Modules
+### 7.7 Combined Observational Modules
 
 When two observational optimizations share no pipeline signals, they can be safely co-implemented. Observational modules by definition don't write to pipeline control paths, so they can't interfere with each other.
 
@@ -396,7 +360,7 @@ When two observational optimizations share no pipeline signals, they can be safe
 
 ---
 
-## 9. Ordered Debug Checklist
+## 8. Ordered Debug Checklist
 
 When all benchmarks fail (total-failure), check in this order (fastest-to-check first):
 
