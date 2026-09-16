@@ -76,6 +76,19 @@ The diagnosis names a bottleneck from measured counters:
 
 ## Tools
 
-You may pull history rather than having it pushed at you: `query_history`,
-`get_pareto_front`, `compare(state_a, state_b)`, `query_density(region, granularity)`.
-Prefer these over asking for more context.
+Three read-only pull tools. Prefer pulling over asking for more context: the
+harness pushes only the current state, the last verdict and a <=5-point front
+summary, and it does that deliberately -- a pushed history grows without bound
+over 60 iterations and dilutes attention to the current design.
+
+| Call | Returns |
+|---|---|
+| `sparsecraft_status_read_status()` | the harness-computed status of the current design |
+| `sparsecraft_history_query_history(top_k=10)` | the most recently evaluated designs with their measured metrics |
+| `sparsecraft_history_get_pareto_front()` | the current Pareto front over (time, energy, area) |
+
+You edit through `sparsecraft_edit_run_command` -- a bash shell rooted at the
+chipyard tree inside the build container.
+
+There is no `compare()` and no `query_density()`. To compare two designs, pull
+`query_history` and read the two metric rows.

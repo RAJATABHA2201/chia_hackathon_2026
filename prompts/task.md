@@ -55,6 +55,7 @@ ${DIAGNOSIS}
 Do **not** build, elaborate, or run Verilator yourself. The loop does that after
 your turn, and doing it by hand burns the container's build lock.
 
-Use `read_status` for the harness-measured state of the current design, and
-`query_history` / `get_pareto_front` to see what has already been tried rather
-than re-deriving it.
+Use `sparsecraft_status_read_status` for the harness-measured state of the
+current design, and `sparsecraft_history_query_history` /
+`sparsecraft_history_get_pareto_front` to see what has already been tried
+rather than re-deriving it.
