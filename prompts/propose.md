@@ -111,10 +111,20 @@ to you by name.
 
 ## Levers
 
-- **L1 tiling / dataflow** — `block_size`, `tile_m`, `tile_n`, `tile_k`. Large `B` gives
-  dense regular tiles but inflates effective density; small `B` tightens coverage but
-  blows up metadata and DMA descriptors.
-- **L2 array geometry** — `meshRows`, `meshColumns`, `tileRows`, `tileColumns`, `dataflow`.
+- **L1 tiling / dataflow** — `block_size` only. Large `B` gives dense regular tiles
+  but inflates effective density; small `B` tightens coverage but blows up metadata
+  and DMA descriptors.
+  **`tile_m`, `tile_n` and `tile_k` are INERT — do not spend an iteration on them.**
+  They are passed to the kernel compile as `-DTILE_M` etc. and the kernel `#define`s
+  them, but no line of the kernel body reads them; only `BLOCK_SIZE` is used. Changing
+  one rebuilds the kernel, runs a full simulation, and returns cycles identical to the
+  parent's — measured, not assumed. The state hash changes, so the result is scored as
+  a new design that happens to be exactly as good, which wastes the iteration twice
+  over.
+- **L2 array geometry** — `meshRows`, `meshColumns`, `dataflow`. **`meshRows` and
+  `meshColumns` must be changed TOGETHER and kept equal**: T0 requires
+  `meshRows*tileRows == meshColumns*tileColumns`, so moving one alone is rejected
+  before anything is built. Leave `tileRows`/`tileColumns` at 1.
   Area is roughly linear in MAC count; Fmax degrades with reduction-tree depth.
 - **L3 memory** — `sp_capacity_kb`, `acc_capacity_kb`, `sp_banks`, `acc_banks`,
   `spad_read_delay`, `acc_latency`. SRAM dominates 60–80% of tile area.
