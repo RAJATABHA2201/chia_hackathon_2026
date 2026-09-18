@@ -100,7 +100,7 @@ your confidence on a 1-5 scale and act on it:
     from a revert.
   → Narrow it by reading: re-derive the constraint arithmetic by hand, pull the
     nearest previously-measured neighbour with
-    `sparsecraft_history_query_history` and diff the two design states, and read
+    `sparsecraft_history__sparsecraft_history_query_history` and diff the two design states, and read
     the `require()` sites in the Gemmini sources. Iterate until confidence
     reaches High, then apply the real fix.
 
@@ -134,14 +134,14 @@ Read-only context, useful for `require()` sites and parameter semantics:
 
 # Available tools
 
-- `sparsecraft_edit_run_command` — bash on the build machine, rooted at the
+- `sparsecraft_edit__sparsecraft_edit_run_command` — bash on the build machine, rooted at the
   chipyard tree. Read with `cat` / `head`, search with `grep -rn`, write with
   heredocs or `sed`.
-- `sparsecraft_status_read_status` — the harness-computed status of the current
+- `sparsecraft_status__sparsecraft_status_read_status` — the harness-computed status of the current
   design.
-- `sparsecraft_history_query_history(top_k=10)` — recently evaluated designs
+- `sparsecraft_history__sparsecraft_history_query_history(top_k=10)` — recently evaluated designs
   with their measured metrics.
-- `sparsecraft_history_get_pareto_front()` — the current front over
+- `sparsecraft_history__sparsecraft_history_get_pareto_front()` — the current front over
   (time, energy, area).
 
 # Required reading

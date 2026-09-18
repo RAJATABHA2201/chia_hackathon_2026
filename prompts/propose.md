@@ -160,11 +160,11 @@ over 60 iterations and dilutes attention to the current design.
 
 | Call | Returns |
 |---|---|
-| `sparsecraft_status_read_status()` | the harness-computed status of the current design |
-| `sparsecraft_history_query_history(top_k=10)` | the most recently evaluated designs with their measured metrics |
-| `sparsecraft_history_get_pareto_front()` | the current Pareto front over (time, energy, area) |
+| `sparsecraft_status__sparsecraft_status_read_status()` | the harness-computed status of the current design |
+| `sparsecraft_history__sparsecraft_history_query_history(top_k=10)` | the most recently evaluated designs with their measured metrics |
+| `sparsecraft_history__sparsecraft_history_get_pareto_front()` | the current Pareto front over (time, energy, area) |
 
-You edit through `sparsecraft_edit_run_command` -- a bash shell rooted at the
+You edit through `sparsecraft_edit__sparsecraft_edit_run_command` -- a bash shell rooted at the
 chipyard tree inside the build container.
 
 There is no `compare()` and no `query_density()`. To compare two designs, pull
