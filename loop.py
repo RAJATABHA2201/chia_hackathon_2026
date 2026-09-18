@@ -336,7 +336,9 @@ def main() -> int:
 
         for it in range(1, args.iters + 1):
             t_start = time.time()
-            if arm is not None:
+            if arm is not None and it > 2:
+                # it==2 is the arm's FIRST proposal; there is nothing to report
+                # before it, since iteration 1 is the baseline.
                 arm.observe(last_reward, last_admitted)
                 last_admitted, last_reward = False, None
             assert_integrity(manifest)
@@ -352,7 +354,21 @@ def main() -> int:
             # same node that renders the agent's -- so every arm goes through
             # the identical scope check, T0 gate and measurement path. The only
             # difference between arms is who picked the state.
-            if arm is not None:
+            # Iteration 1 measures the UNMUTATED baseline, for every arm.
+            #
+            # base_point -- the hypervolume reference -- is set from the first
+            # measured design (see N60 below). Letting a proposer move first
+            # means each arm is scored against its own opening proposal, so the
+            # convergence curves are measured from different origins and cannot
+            # be compared. The review fixes the reference to the baseline SoC
+            # measurement x0 (Sec 3.3 Step 3); this is that.
+            #
+            # It costs one evaluation, and after the first run the whole
+            # baseline chain is a cache hit, so the cost is seconds.
+            if it == 1:
+                print("  N10 baseline iteration (no proposal) -- fixes the "
+                      "hypervolume reference for every arm")
+            elif arm is not None:
                 proposed = arm.propose(parent)
                 record["proposed_hash"] = proposed.state_hash()
                 get(nodes.apply_design_state.options(**pg_opts)
