@@ -58,25 +58,31 @@ ${DIAGNOSIS}
    and the iteration is scored against the wrong design.
 4. Keep every field explicit. Do not collapse the config back to
    `GemminiConfigs.leanConfig` — the file should read as the complete design point.
-5. **The fields are column-aligned, with a variable number of spaces before
-   the `=`.** A line looks like `    sp_banks        = 4,` — so a pattern such
-   as `s/sp_banks = 4/.../` matches NOTHING, and `sed` exits 0 having done
-   nothing. Anchor on the name and allow any spacing:
+5. **The fields are column-aligned, and back-references are a trap.** A line
+   looks like `    sp_banks        = 4,` — so `s/sp_banks = 4/.../` matches
+   nothing and `sed` exits 0 having done nothing. And `\18` does NOT mean
+   "group 1 then 8"; sed reads it as group 18. Avoid back-references
+   entirely by replacing the WHOLE line:
 
    ```
-   sed -i -E 's/^(\s*sp_banks\s*=\s*)[0-9]+/\18/' ${PARAMS_PATH}
+   sed -i -E 's|^[[:space:]]*sp_banks[[:space:]]*=.*|    sp_banks = 8,|' ${PARAMS_PATH}
    ```
+
+   Exact column alignment does not matter — the harness parses these with a
+   whitespace-tolerant regex. Only the name, the `=`, the value and the
+   trailing comma matter.
 
 6. **Verify the edit landed before you end your turn.** `sed` reports success
-   whether or not it matched. Read the line back:
+   whether or not it matched, so read the line back:
 
    ```
-   grep -nE '^\s*sp_banks\s*=' ${PARAMS_PATH}
+   grep -nE '^[[:space:]]*sp_banks[[:space:]]*=' ${PARAMS_PATH}
    ```
 
-   If it still shows the old value, your pattern did not match — fix it and
+   If it still shows the old value, your command did not work — fix it and
    retry. An iteration whose edit silently failed is scored as a duplicate of
-   its parent and the whole 30-50 minutes is wasted.
+   its parent and the whole 20-40 minutes is wasted.
+
 7. End your turn with the `==MUTATION==` and `==PREDICTION==` sections the
    system prompt requires.
 
