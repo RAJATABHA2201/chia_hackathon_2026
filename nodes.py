@@ -103,13 +103,15 @@ def elaborate(state_json: str, chipyard_path: str = CHIPYARD_PATH,
     caller must fold it into the cache tag -- an artifact without sources
     cannot satisfy a request that needs them.
 
-    It also flips chipyard's ENABLE_YOSYS_FLOW, which appends
-    ``disallowPackedArrays`` to the firtool lowering options. That is not
-    cosmetic: yosys' Verilog frontend cannot read the packed-array form firtool
-    emits by default. The consequence is deliberate and worth stating plainly --
-    with ``collect_src`` on, the RTL that gets simulated is the same RTL that
-    gets synthesized. With it off, the simulated RTL uses the default lowering.
-    Mixing the two under one cache key would silently compare across flavors.
+    It does NOT flip chipyard's ENABLE_YOSYS_FLOW. That flag appends
+    ``disallowPackedArrays`` to the firtool lowering options, ostensibly so
+    yosys can read the output -- but on this design it makes firtool emit no
+    Verilog at all (docker/yosys_gemmini_recipe.md, blocker 2). The packed-array
+    forms yosys cannot parse are fixed downstream instead.
+
+    The upside of not setting it is that the RTL which gets simulated is now
+    byte-identical to the RTL that gets synthesized: one lowering, one flavour,
+    so a cache key can never straddle two.
     """
     import json
     state = DesignState.from_dict(json.loads(state_json))
@@ -130,7 +132,14 @@ def elaborate(state_json: str, chipyard_path: str = CHIPYARD_PATH,
         clean=False,
         clean_sim=True,
         collect_generated_src=collect_src,
-        extra_make_args={"ENABLE_YOSYS_FLOW": 1} if collect_src else {},
+        # ENABLE_YOSYS_FLOW is deliberately NOT set. It adds firtool's
+        # disallowPackedArrays, which on this design makes firtool emit NO
+        # Verilog at all: the pass pipeline completes, gen-collateral/ is
+        # empty and model_module_hierarchy.json is never written, so make
+        # fails. docker/yosys_gemmini_recipe.md blocker 2. The packed-array
+        # constructs yosys cannot parse are handled downstream instead, by
+        # rewriting "= '{" to "= {" in the staged copies.
+        extra_make_args={},
         name=f"sparsecraft-{state.hw_hash()}",
     )
     # node.build(), not node.build(node). ChiselBuildNode.build is
