@@ -186,6 +186,12 @@ def main() -> int:
     # Fail on the credential NOW, not 40 minutes from now. An elaboration is
     # the most expensive thing in this loop and there is no reason to pay for
     # one before knowing the model can be reached.
+    # A control arm has no model to reach, so this check must not gate it.
+    # Set here rather than where the arm is constructed, which is after this
+    # point: otherwise --proposer greedy aborts on a missing credential it was
+    # never going to use.
+    if args.proposer != "agent":
+        args.skip_llm = True
     if not args.skip_llm:
         try:
             info = agent.describe(args.backend)
@@ -385,7 +391,15 @@ def main() -> int:
             record["diff_bytes"] = sum(len(v) for v in diff.values())
 
             # ---- N20 T0 legality --------------------------------------------
-            child = nodes.state_from_tree(diff) or parent
+            # Read the state back from the TREE, not from the diff.
+            # collect_diff returns {repo_path: diff_text}; state_from_tree
+            # wants parsed Scala fields. Passing the former made from_dict
+            # ignore every key and hand back the DEFAULT DesignState -- i.e.
+            # the baseline -- so every iteration was scored as the baseline no
+            # matter what had actually been written. Invisible under
+            # --skip-llm, where the tree really is the baseline.
+            parsed = get(nodes.read_design_state.options(**pg_opts).chia_remote())
+            child = nodes.state_from_tree(parsed) or parent
             verdict_t0 = t0.check(child)
             record["state_hash"] = child.state_hash()
             record["move"] = classify_move(parent, child)
