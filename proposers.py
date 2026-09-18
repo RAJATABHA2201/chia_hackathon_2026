@@ -68,9 +68,17 @@ HW_LEVERS: dict[str, list] = {
 
 SW_LEVERS: dict[str, list] = {
     "block_size": [16, 32, 64, 128],
-    "tile_m":     [8, 16, 32],
-    "tile_n":     [8, 16, 32],
-    "tile_k":     [8, 16, 32],
+    # tile_m / tile_n / tile_k are NOT offered. They are passed to the kernel
+    # compile as -DTILE_M etc. (nodes.py:178) and the kernel #defines them
+    # (attn_prefill.c:31-38) -- but never reads them. Only BLOCK_SIZE is
+    # actually used (:45, :51, :66). Measured: greedy changed tile_m, the
+    # kernel was rebuilt and simulated for 17 minutes, and cycles came back
+    # byte-identical to the baseline at 89,986.
+    #
+    # Offering an inert lever to a search is worse than offering none: the arm
+    # spends a full evaluation to learn nothing, and the loop admits the result
+    # as a new design because the state hash changed. Restore these here only
+    # once the kernel actually tiles by them.
 }
 
 ALL_LEVERS: dict[str, list] = {**HW_LEVERS, **SW_LEVERS}
