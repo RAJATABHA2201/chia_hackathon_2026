@@ -418,6 +418,13 @@ def main() -> int:
             child = nodes.state_from_tree(parsed) or parent
             verdict_t0 = t0.check(child)
             record["state_hash"] = child.state_hash()
+            # The FULL design state, not just its hash. Post-hoc work -- T3
+            # synthesis of the final front, or re-measuring a point months
+            # later -- needs the parameters themselves, and a hash cannot be
+            # inverted. Reconstructing them from the diff files is possible
+            # but fiddly, and one dict per iteration costs nothing.
+            record["state"] = child.canonical()
+            record["hw_hash"] = child.hw_hash()
             record["move"] = classify_move(parent, child)
             print(f"  N13 move={record['move']['class']}"
                   f"  hw={record['move']['hw_fields']}"
