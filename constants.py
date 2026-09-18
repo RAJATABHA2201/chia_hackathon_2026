@@ -23,13 +23,21 @@ GEMMINI_CFG_REL = f"{GEMMINI_REPO_REL}/chipyard"
 PARAMS_FILE_REL = f"{GEMMINI_SRC_REL}/SparseCraftParams.scala"
 HARNESS_FILE_REL = f"{GEMMINI_CFG_REL}/SparseCraftConfigs.scala"
 
+# The nested software submodule. Defined here, above SUBMODULES, because
+# SUBMODULES now references it.
+GEMMINI_SW_REL = f"{GEMMINI_REPO_REL}/software/gemmini-rocc-tests"
+
 # Repos collect_diff/reset_and_apply_diff must track, beyond chipyard itself.
-SUBMODULES = [GEMMINI_REPO_REL]
+# Both levels: elaboration writes gemmini_params.h into the NESTED
+# gemmini-rocc-tests submodule, so scanning only the outer one reports an
+# opaque ' M software/gemmini-rocc-tests' that the N13 allowlist cannot tell
+# apart from a model edit. Recursing gives per-file paths, and the generated
+# header is then excused by name in loop.py's harness_paths.
+SUBMODULES = [GEMMINI_REPO_REL, GEMMINI_SW_REL]
 
 # Gemmini's generated header, emitted by elaboration. The kernels include it,
 # which is why the software build's cache key must carry the config hash.
 GEMMINI_PARAMS_H_REL = f"{GEMMINI_REPO_REL}/software/gemmini-rocc-tests/include/gemmini_params.h"
-GEMMINI_SW_REL = f"{GEMMINI_REPO_REL}/software/gemmini-rocc-tests"
 
 CONFIG_NAME = "SparseCraftConfig"
 CONFIG_PACKAGE = "chipyard"

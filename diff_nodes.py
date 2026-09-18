@@ -128,7 +128,11 @@ def changed_paths(chipyard_path: str = CHIPYARD_PATH,
         sm_path = os.path.join(chipyard_path, sm)
         if not os.path.isdir(sm_path):
             continue
-        r = subprocess.run(["git", "status", "--porcelain"], cwd=sm_path,
+        # --ignore-submodules=all, same as the top-level call above: a
+        # submodule's own nested submodules are covered by recursing into
+        # them via SUBMODULES, not by this aggregate pointer entry.
+        r = subprocess.run(["git", "status", "--porcelain",
+                            "--ignore-submodules=all"], cwd=sm_path,
                            capture_output=True, text=True)
         out += [os.path.join(sm, ln[3:].strip())
                 for ln in r.stdout.splitlines() if ln.strip()]

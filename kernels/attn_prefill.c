@@ -4,6 +4,14 @@
 // simulator's HTIF stdout, so anything the harness scores has to be printed
 // here in the exact "SPARSECRAFT <name>=<int>" form metrics.py parses.
 //
+// 64-bit values use %lu / (unsigned long), NEVER %llu. This build links
+// newlib-NANO (-specs=htif_nano.specs in nodes.py), whose printf has no
+// long-long conversion: "%llu" emits the literal text "lu" and the metric
+// parses as nothing, so the iteration dies in metrics.parse AFTER paying
+// for a full elaborate and a ~10 min simulate. -u _printf_long_long does
+// NOT fix it (verified under spike). On RV64 LP64 a long is 64 bits, so
+// %lu costs no range.
+//
 // Counters come from Gemmini's CounterFile. The hardware exposes exactly
 // EIGHT slots (counter_read masks the index with 0x7), and a slot only counts
 // from the moment it is configured -- so all eight are armed before the
@@ -136,13 +144,13 @@ int main(void) {
 
   uint64_t macs = nnz_blocks * (uint64_t)BLOCK_SIZE * BLOCK_SIZE * D_HEAD * 2ull;
 
-  printf("SPARSECRAFT cycles=%llu\n", (unsigned long long)(t1 - t0));
-  printf("SPARSECRAFT macs_useful=%llu\n", (unsigned long long)macs);
-  printf("SPARSECRAFT nnz_blocks=%llu\n", (unsigned long long)nnz_blocks);
+  printf("SPARSECRAFT cycles=%lu\n", (unsigned long)(t1 - t0));
+  printf("SPARSECRAFT macs_useful=%lu\n", (unsigned long)macs);
+  printf("SPARSECRAFT nnz_blocks=%lu\n", (unsigned long)nnz_blocks);
   printf("SPARSECRAFT seq_len=%d\n", SEQ_LEN);
   printf("SPARSECRAFT block_size=%d\n", BLOCK_SIZE);
   printf("SPARSECRAFT d_head=%d\n", D_HEAD);
-  printf("SPARSECRAFT checksum=%lld\n", (long long)checksum);
+  printf("SPARSECRAFT checksum=%ld\n", (long)checksum);
 
   printf("SPARSECRAFT EXE_ACTIVE_CYCLE=%u\n", counter_read(C_EXE_ACTIVE));
   printf("SPARSECRAFT LOAD_DMA_WAIT_CYCLE=%u\n", counter_read(C_LOAD_DMA_WAIT));

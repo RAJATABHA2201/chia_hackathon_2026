@@ -240,7 +240,13 @@ def main() -> int:
         # Writing the BASELINE once, and only when the file is absent, fixes
         # both without touching the model's authority over it: any subsequent
         # iteration reads back what the model wrote, exactly as before.
-        harness_paths: set = set()
+        # gemmini_params.h is EMITTED BY ELABORATION into the nested
+        # gemmini-rocc-tests submodule (constants.py:GEMMINI_PARAMS_H_REL), so it
+        # is dirty on every iteration through no action of the model's. Excused
+        # by exact name, not by ignoring the submodule: with SUBMODULES now
+        # recursing into it, any OTHER file the model touches in there is still
+        # reported per-path and still rejected.
+        harness_paths: set = {C.GEMMINI_PARAMS_H_REL}
 
         def ensure_baseline() -> None:
             """Write the baseline params + harness config if the tree lacks them.
