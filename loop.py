@@ -119,17 +119,66 @@ def assert_integrity(baseline: dict) -> None:
 
 # ---- N61 diagnose: rule table first, model only on 'unclassified' --------
 def diagnose(m) -> str:
-    conflict, dma_wait, exe = (m.conflict_stall_fraction(),
-                               m.dma_wait_fraction(), m.exe_active_fraction())
-    if conflict > 0.15:
-        return f"bank-conflict bound (conflict_stalls={conflict:.2f}) -- lever L3 banking"
+    """Name the bottleneck from the counters.
+
+    The scratchpad/accumulator wait counters and RESERVATION_STATION_FULL are
+    NOT per-cycle fractions -- each one routinely exceeds the cycle count
+    (measured: 2.39x, 2.49x, 2.87x of cycles on the baseline). They are
+    free-running accumulations across banks and ports, so an absolute
+    threshold on them is meaningless.
+
+    The original rule fired `conflict_stall_fraction > 0.15` on a quantity
+    whose value was 4.88, so it was true for EVERY design and the other three
+    rules were unreachable. The diagnosis never changed, and the agent
+    dutifully proposed banking changes for five of its first six moves --
+    against a lever that left cycles bit-identical every time.
+
+    So: the two counters that ARE bounded fractions (exe_active, dma_wait)
+    drive the decision, and the unbounded ones are used only to attribute a
+    stall between scratchpad pressure and issue-queue pressure, which is a
+    comparison between like quantities and therefore sound.
+    """
+    dma_wait, exe = m.dma_wait_fraction(), m.exe_active_fraction()
+    c = m.counters
+    spad = sum(c.get(k, 0) for k in ("SCRATCHPAD_A_WAIT_CYCLE",
+                                     "SCRATCHPAD_B_WAIT_CYCLE",
+                                     "SCRATCHPAD_D_WAIT_CYCLE"))
+    rs_full = c.get("RESERVATION_STATION_FULL_CYCLES", 0)
+
     if dma_wait > 0.30:
         return f"memory bound (dma_wait={dma_wait:.2f}) -- lever L5, then L1 reuse"
-    if exe < 0.40 and dma_wait < 0.20:
-        return f"load imbalance (exe_active={exe:.2f}) -- lever L1 tiling"
     if exe > 0.80:
         return f"compute bound (exe_active={exe:.2f}) -- lever L2 geometry"
-    return "unclassified"
+    if exe < 0.40:
+        # The array is idle most of the time. Attribute it by comparing the
+        # two unbounded counters against EACH OTHER, never against cycles.
+        if spad > rs_full:
+            return (f"array idle (exe_active={exe:.2f}), scratchpad-wait dominated "
+                    f"(spad={spad:,} vs rs_full={rs_full:,}) -- lever L1 tiling or "
+                    f"L3 capacity. NOTE bank COUNT alone has been ineffective here.")
+        return (f"array idle (exe_active={exe:.2f}), issue-queue dominated "
+                f"(rs_full={rs_full:,} vs spad={spad:,}) -- lever L7 queue depths")
+    return f"unclassified (exe_active={exe:.2f}, dma_wait={dma_wait:.2f})"
+
+
+def tried_summary(history: dict, k: int = 6) -> str:
+    """What the search has already spent turns on, and what it got.
+
+    Without this the agent has no memory across turns: it sees one diagnosis,
+    proposes the lever that diagnosis names, is rejected, sees the same
+    diagnosis again and proposes the same lever. It has query_history as a
+    pull tool and did not reach for it.
+    """
+    rows = [it for it in history.get("iterations", [])][-k:]
+    if not rows:
+        return ""
+    out = []
+    for it in rows:
+        out.append(f"  - iter {it.get('iteration')}: {it.get('verdict')} "
+                   f"({it.get('cycles'):,} cycles)" if it.get("cycles")
+                   else f"  - iter {it.get('iteration')}: {it.get('verdict')}")
+    return ("\n\nAlready evaluated this run -- do NOT repeat these:\n"
+            + "\n".join(out))
 
 
 def write_status(path: Path, state: DesignState, m, verdict: str) -> None:
@@ -572,7 +621,7 @@ def main() -> int:
             print(f"  N60 {v.value}  front={len(front.points)}  "
                   f"niches={archive.occupancy()}")
 
-            diagnosis = diagnose(m)
+            diagnosis = diagnose(m) + tried_summary(history)
             record["diagnosis"] = diagnosis
             write_status(status_path, child, m, v.value)
 
