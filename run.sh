@@ -23,6 +23,7 @@ BRING_UP=1
 TEAR_DOWN=1
 SKIP_PREFLIGHT=0
 SUBMIT=0
+NEEDS_LLM=1
 
 usage() {
     cat <<USAGE
@@ -52,7 +53,13 @@ while [[ $# -gt 0 ]]; do
         --backend)        EXTRA+=(--backend "$2"); export SPARSECRAFT_LLM_BACKEND="$2"; shift 2 ;;
         --model)          EXTRA+=(--model "$2");   export SPARSECRAFT_LLM_MODEL="$2";   shift 2 ;;
         --synth)          EXTRA+=(--synth); shift ;;
-        --proposer)       EXTRA+=(--proposer "$2"); shift 2 ;;
+        --proposer)       EXTRA+=(--proposer "$2")
+                          # random/greedy use no model, so the credential
+                          # preflight must not gate them -- otherwise an
+                          # overnight control arm dies on an unrelated auth
+                          # hiccup.
+                          [[ "$2" != "agent" ]] && NEEDS_LLM=0
+                          shift 2 ;;
         --skip-llm)       EXTRA+=(--skip-llm); shift ;;
         --no-up)          BRING_UP=0; shift ;;
         --no-down)        TEAR_DOWN=0; shift ;;
@@ -100,7 +107,7 @@ echo "head ip: $THIS_MACHINE"
 # Both checks are seconds. The loop's first elaboration is 20-40 minutes, so
 # anything that can be known cheaply is worth knowing before that starts.
 if [[ $SKIP_PREFLIGHT -eq 0 ]]; then
-    if [[ " ${EXTRA[*]-} " != *" --skip-llm "* ]]; then
+    if [[ $NEEDS_LLM -eq 1 && " ${EXTRA[*]-} " != *" --skip-llm "* ]]; then
         say "preflight 1/2: can we reach the model?"
         if ! python check_llm.py; then
             echo
