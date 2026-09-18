@@ -101,3 +101,30 @@ report_power
 Without annotated switching activity this uses default toggle rates: a
 standard-cell-library-grounded estimate, not a gate-accurate measurement, and
 the paper must say so. Feeding a VCD from the Verilator run would improve it.
+
+## What is and is not trustworthy (measured 2026-09-19)
+
+| Quantity | Value | Trust |
+|---|---|---|
+| Standard-cell area | 2,372,199 um2 | **Credible.** `stat -liberty` sums cell areas straight from the liberty; no timing model is involved. |
+| Worst slack @2.0ns | -5150.49 ns | **NOT credible.** |
+| Total power | 625.7 W | **NOT credible.** |
+
+The worst path has **28 stages** and reports -5150 ns. Twenty-eight NanGate45
+gates are 1-3 ns, not 5 microseconds. The delays are being extrapolated far
+outside the liberty's characterization range, which is what happens when nets
+have enormous fanout and nothing has buffered them: `abc -fast` plus
+hierarchical (non-flattened) synthesis does no sizing or buffer insertion. The
+625 W is the same defect seen through switching power, since it scales with the
+same wrong capacitance.
+
+So this recipe currently yields **area only**. To make timing and power real,
+the netlist needs a physical-ish optimization pass before STA -- at minimum
+`set_driving_cell` / `set_load` / `set_max_fanout` constraints, and realistically
+OpenROAD's `repair_design` to insert buffers and fix fanout and transition
+violations. That is the next piece of work, not something the STA invocation
+above can fix by itself.
+
+Reporting guidance for the paper: quote **area as measured**, and either omit
+Fmax and power or state explicitly that they come from the T1 analytical model.
+Do not quote the numbers above for timing or power.
