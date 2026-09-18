@@ -52,6 +52,7 @@ import agent                                                            # noqa: 
 import constants as C                                                   # noqa: E402
 import diff_nodes                                                       # noqa: E402
 import nodes                                                            # noqa: E402
+import proposers                                                        # noqa: E402
 import synth_node                                                       # noqa: E402
 import t0_legality as t0                                                # noqa: E402
 from design_state import BASELINE, DesignState                          # noqa: E402
@@ -151,6 +152,13 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--run-name", default=time.strftime("run-%Y%m%d-%H%M%S"))
     ap.add_argument("--seed-diff", help="resume from a previously collected diff.json")
+    ap.add_argument("--proposer", default="agent",
+                    choices=("agent", "random", "greedy"),
+                    help="who picks the next design. 'agent' is the LLM; "
+                         "'random' and 'greedy' are the non-agentic control "
+                         "arms (proposers.py) and use no model at all. All "
+                         "three face the identical harness, baseline, T0 rules "
+                         "and budget -- only the chooser differs.")
     ap.add_argument("--skip-llm", action="store_true",
                     help="re-run the harness against the CURRENT tree without an "
                          "agentic turn (real nodes, no fabricated results)")
@@ -241,6 +249,15 @@ def main() -> int:
     sealed = agent.make_sealed_tools(str(status_path), str(history_path))
     tools = [editor] + sealed
 
+    # Control arms (proposers.py) use no model at all. Constructing the LLM
+    # for them would burn a credential check and a provider handshake for
+    # nothing, so the arm decides whether there is an agent.
+    arm = None if args.proposer == "agent" else proposers.make_proposer(
+        args.proposer, seed=args.seed)
+    if arm is not None:
+        args.skip_llm = True
+        print(f"proposer: {arm.name.upper()} control arm (no LLM), seed={args.seed}")
+
     implement_llm = (None if args.skip_llm else
                      agent.make_llm("propose.md", backend=args.backend,
                                     model=args.model,
@@ -303,8 +320,19 @@ def main() -> int:
 
         ensure_baseline()
 
+        # A control arm needs to know whether its last proposal was admitted.
+        # Reported at the START of the next iteration rather than at each exit
+        # point: an iteration can leave via five different early `continue`s
+        # (scope, T0, duplicate, elaboration, kernel, tripwire) and an arm that
+        # missed any of them would stall waiting for a verdict that never came.
+        # Not-admitted is therefore the default, and only N60 overrides it.
+        last_admitted, last_reward = False, None
+
         for it in range(1, args.iters + 1):
             t_start = time.time()
+            if arm is not None:
+                arm.observe(last_reward, last_admitted)
+                last_admitted, last_reward = False, None
             assert_integrity(manifest)
             print(f"\n{'='*70}\niteration {it}  parent={parent.state_hash()}  "
                   f"front={len(front.points)}  niches={archive.occupancy()}")
@@ -313,8 +341,17 @@ def main() -> int:
                       "parent_hash": parent.state_hash(),
                       "weights_hash": weights_hash(), "seed": args.seed}
 
-            # ---- N10 AGENTIC: the model edits Chisel in the build container --
-            if not args.skip_llm:
+            # ---- N10: whoever is choosing, the design lands in the tree ----
+            # A control arm writes its state through apply_design_state -- the
+            # same node that renders the agent's -- so every arm goes through
+            # the identical scope check, T0 gate and measurement path. The only
+            # difference between arms is who picked the state.
+            if arm is not None:
+                proposed = arm.propose(parent)
+                record["proposed_hash"] = proposed.state_hash()
+                get(nodes.apply_design_state.options(**pg_opts)
+                    .chia_remote(json.dumps(proposed.canonical())))
+            elif not args.skip_llm:
                 msg_text = agent.load_prompt(
                     "task.md",
                     PARAMS_PATH=os.path.join(C.CHIPYARD_PATH, C.PARAMS_FILE_REL),
@@ -501,6 +538,7 @@ def main() -> int:
 
             if v in (Verdict.ADMIT_FRONT, Verdict.ADMIT_ARCHIVE, Verdict.ADMIT_STEP):
                 parent, parent_reward = child, info.get("reward", parent_reward)
+                last_admitted, last_reward = True, info.get("reward")
 
             record["wall_clock_s"] = round(time.time() - t_start, 2)
             (run_dir / f"iter_{it:03d}.json").write_text(json.dumps(record, indent=2))

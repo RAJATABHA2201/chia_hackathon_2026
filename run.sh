@@ -32,6 +32,9 @@ usage: ./run.sh [options] [-- extra loop.py args]
   --backend NAME     gemini | vertex | openai | anthropic | openrouter | groq
   --model ID         model id; default is the backend's own
   --synth            score on MEASURED area and Fmax (T3), not T1's model
+  --proposer NAME    agent | random | greedy -- who picks the next design.
+                     random and greedy are the non-agentic control arms and
+                     use no model, so they need no credentials.
   --skip-llm         run the harness with no model at all
   --no-up            assume the cluster is already running
   --no-down          leave the cluster up when the loop finishes
@@ -49,6 +52,7 @@ while [[ $# -gt 0 ]]; do
         --backend)        EXTRA+=(--backend "$2"); export SPARSECRAFT_LLM_BACKEND="$2"; shift 2 ;;
         --model)          EXTRA+=(--model "$2");   export SPARSECRAFT_LLM_MODEL="$2";   shift 2 ;;
         --synth)          EXTRA+=(--synth); shift ;;
+        --proposer)       EXTRA+=(--proposer "$2"); shift 2 ;;
         --skip-llm)       EXTRA+=(--skip-llm); shift ;;
         --no-up)          BRING_UP=0; shift ;;
         --no-down)        TEAR_DOWN=0; shift ;;
