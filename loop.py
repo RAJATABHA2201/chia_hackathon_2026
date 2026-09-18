@@ -64,6 +64,40 @@ IMMUTABLE_FILES = ("t0_legality.py", "pareto.py", "t1_model.py",
                    "metrics.py", "kernels/attn_prefill.c")
 
 
+# ---- move classification: the hardware/software cost asymmetry -------------
+def classify_move(parent: DesignState, child: DesignState) -> dict:
+    """Which layer this iteration touched, and what that costs.
+
+    The defining asymmetry of a hardware/software co-design loop, and the one
+    thing this search has that a pure-RTL or pure-compiler search does not:
+
+      SW_FIELDS (block_size, tile_m/n/k)  are -D flags on the kernel compile.
+        Cost: recompile + simulate, ~11 min. The elaboration is reused.
+      HW_FIELDS (the 20 RTL parameters)   change the generated Verilog.
+        Cost: re-elaborate + recompile + simulate, ~30-50 min -- AND the
+        software build is invalidated too, because elaboration emits the
+        gemmini_params.h the kernel includes. That one-way dependency is why
+        DesignState.sw_hash() deliberately carries hw_hash().
+
+    Recording this per iteration is what makes the move-economics analysis
+    possible: how often the agent reaches for a cheap move, whether it batches
+    expensive ones, and how its distribution differs from greedy and random.
+    """
+    changed = parent.diff_from(child)
+    hw = sorted(set(changed) & set(DesignState.HW_FIELDS))
+    sw = sorted(set(changed) & set(DesignState.SW_FIELDS))
+    cls = "HW+SW" if (hw and sw) else "HW" if hw else "SW" if sw else "NONE"
+    return {
+        "class": cls,
+        "hw_fields": hw,
+        "sw_fields": sw,
+        "n_changed": len(changed),
+        "changed": {k: [v[0], v[1]] for k, v in changed.items()},
+        # True => this move cannot reuse the cached elaboration.
+        "forces_elaboration": bool(hw),
+    }
+
+
 # ---- N74 integrity assert ------------------------------------------------
 def integrity_manifest() -> dict:
     here = Path(__file__).resolve().parent
@@ -317,6 +351,10 @@ def main() -> int:
             child = nodes.state_from_tree(diff) or parent
             verdict_t0 = t0.check(child)
             record["state_hash"] = child.state_hash()
+            record["move"] = classify_move(parent, child)
+            print(f"  N13 move={record['move']['class']}"
+                  f"  hw={record['move']['hw_fields']}"
+                  f"  sw={record['move']['sw_fields']}")
             if not verdict_t0.legal:
                 print(f"  N20 T0 FAIL: {verdict_t0.violations}")
                 record["verdict"] = "T0_ILLEGAL"
