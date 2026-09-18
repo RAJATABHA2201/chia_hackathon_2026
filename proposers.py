@@ -44,9 +44,14 @@ from design_state import DesignState
 # Tagged by layer so an arm can be restricted to one side if needed, and so the
 # move-economics analysis sees the same HW/SW partition loop.classify_move uses.
 # --------------------------------------------------------------------------
+# meshRows and meshColumns are NOT separate levers. T0 requires
+# meshRows*tileRows == meshColumns*tileColumns (the array must be square), so
+# moving one alone is illegal by construction: greedy-1 spent all 11 of its
+# search iterations on meshColumns and every single one died at T0. The array
+# dimension is one knob conceptually, so it is one lever here, applied to both
+# fields together by _expand().
 HW_LEVERS: dict[str, list] = {
-    "meshRows":                       [4, 8, 16, 32],
-    "meshColumns":                    [4, 8, 16, 32],
+    "array_dim":                      [4, 8, 16, 32],
     "dataflow":                       ["WS", "OS", "BOTH"],
     "sp_capacity_kb":                 [64, 128, 256, 512],
     "acc_capacity_kb":                [16, 32, 64, 128],
@@ -96,9 +101,24 @@ _EXCLUDED = ("has_normalizations", "mvin_scale_shared", "num_counter",
              "tileRows", "tileColumns")
 
 
+def _expand(field: str, value) -> dict:
+    """A lever name -> the design-state fields it sets.
+
+    Only array_dim is compound: it drives meshRows and meshColumns together so
+    the square-array constraint holds by construction rather than by luck.
+    """
+    if field == "array_dim":
+        return {"meshRows": value, "meshColumns": value}
+    return {field: value}
+
+
+def _current(state, field):
+    return state.meshRows if field == "array_dim" else getattr(state, field)
+
+
 def _alternatives(state: DesignState, field: str) -> list:
     """Candidate values for ``field`` other than the one currently set."""
-    return [v for v in ALL_LEVERS[field] if v != getattr(state, field)]
+    return [v for v in ALL_LEVERS[field] if v != _current(state, field)]
 
 
 class RandomProposer:
@@ -112,7 +132,7 @@ class RandomProposer:
     def propose(self, parent: DesignState) -> DesignState:
         fields = [f for f in ALL_LEVERS if _alternatives(parent, f)]
         field = self.rng.choice(fields)
-        return parent.mutate(**{field: self.rng.choice(_alternatives(parent, field))})
+        return parent.mutate(**_expand(field, self.rng.choice(_alternatives(parent, field))))
 
     def observe(self, reward: Optional[float], admitted: bool) -> None:
         """Random search ignores feedback -- that is the point of the arm."""
@@ -140,30 +160,39 @@ class GreedyProposer:
         self.rng = random.Random(seed)
         self.order = sorted(ALL_LEVERS)
         self.rng.shuffle(self.order)       # seed-dependent order, not alphabetical bias
-        self.fi = 0                        # index into self.order
-        self.queue: list = []              # untried values for the current lever
         self.incumbent: Optional[DesignState] = None
-        self.pending: Optional[tuple] = None   # (field, value) awaiting a verdict
+        self.todo: list = []               # [(field, value)] still to try
+        self.pending: Optional[tuple] = None   # awaiting a verdict
         self.exhausted = False
+
+    def _rebuild(self) -> None:
+        """Every (lever, value) still worth trying against the incumbent.
+
+        Built as ONE flat list in lever order, values shuffled within a lever.
+        The previous version kept a per-lever queue and refilled it whenever it
+        emptied, which meant the lever index never advanced and the search
+        could not leave lever #1: greedy-1 spent all 11 search iterations on
+        meshColumns. A single list that is only ever popped from cannot do
+        that.
+        """
+        self.todo = []
+        for field in self.order:
+            vals = _alternatives(self.incumbent, field)
+            self.rng.shuffle(vals)
+            self.todo.extend((field, v) for v in vals)
 
     def propose(self, parent: DesignState) -> DesignState:
         if self.incumbent is None:
             self.incumbent = parent
-
-        while self.fi < len(self.order):
-            field = self.order[self.fi]
-            if not self.queue:
-                self.queue = list(_alternatives(self.incumbent, field))
-                self.rng.shuffle(self.queue)
-            if self.queue:
-                value = self.queue.pop()
-                self.pending = (field, value)
-                return self.incumbent.mutate(**{field: value})
-            self.fi += 1
+            self._rebuild()
+        if self.todo:
+            field, value = self.todo.pop(0)
+            self.pending = (field, value)
+            return self.incumbent.mutate(**_expand(field, value))
 
         # Every lever exhausted with no further improvement: converged. Keep
-        # returning the incumbent; loop.py's dedup will mark it a duplicate,
-        # which is the honest record of a greedy search that has stalled.
+        # returning the incumbent; loop.py's dedup marks it a duplicate, which
+        # is the honest record of a greedy search that has stalled.
         self.exhausted = True
         self.pending = None
         return self.incumbent
@@ -174,9 +203,10 @@ class GreedyProposer:
         field, value = self.pending
         self.pending = None
         if admitted:
-            self.incumbent = self.incumbent.mutate(**{field: value})
-            self.queue = []
-            self.fi = 0        # an accepted move can reopen earlier levers
+            # An accepted move can reopen levers already passed over, so the
+            # candidate list is rebuilt against the new incumbent.
+            self.incumbent = self.incumbent.mutate(**_expand(field, value))
+            self._rebuild()
 
 
 def make_proposer(name: str, seed: int = 0):
