@@ -58,7 +58,26 @@ ${DIAGNOSIS}
    and the iteration is scored against the wrong design.
 4. Keep every field explicit. Do not collapse the config back to
    `GemminiConfigs.leanConfig` — the file should read as the complete design point.
-5. End your turn with the `==MUTATION==` and `==PREDICTION==` sections the
+5. **The fields are column-aligned, with a variable number of spaces before
+   the `=`.** A line looks like `    sp_banks        = 4,` — so a pattern such
+   as `s/sp_banks = 4/.../` matches NOTHING, and `sed` exits 0 having done
+   nothing. Anchor on the name and allow any spacing:
+
+   ```
+   sed -i -E 's/^(\s*sp_banks\s*=\s*)[0-9]+/\18/' ${PARAMS_PATH}
+   ```
+
+6. **Verify the edit landed before you end your turn.** `sed` reports success
+   whether or not it matched. Read the line back:
+
+   ```
+   grep -nE '^\s*sp_banks\s*=' ${PARAMS_PATH}
+   ```
+
+   If it still shows the old value, your pattern did not match — fix it and
+   retry. An iteration whose edit silently failed is scored as a duplicate of
+   its parent and the whole 30-50 minutes is wasted.
+7. End your turn with the `==MUTATION==` and `==PREDICTION==` sections the
    system prompt requires.
 
 Do **not** build, elaborate, or run Verilator yourself. The loop does that after
