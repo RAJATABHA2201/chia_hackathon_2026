@@ -431,7 +431,16 @@ def main() -> int:
                 continue
             if child.state_hash() in seen:
                 print("  N21 duplicate design; asking for a different edit")
-                diagnosis = f"design {child.state_hash()} already evaluated; try another lever"
+                # Record it. A deduped iteration still consumed a turn and an
+                # LLM call, so leaving it out of the records makes the arm look
+                # more efficient than it was and hides livelocks entirely.
+                record["verdict"] = "DUPLICATE"
+                record["wall_clock_s"] = round(time.time() - t_start, 2)
+                (run_dir / f"iter_{it:03d}.json").write_text(json.dumps(record, indent=2))
+                get(nodes.apply_design_state.options(**pg_opts)
+                    .chia_remote(json.dumps(parent.canonical())))
+                diagnosis = (f"design {child.state_hash()} was ALREADY EVALUATED. "
+                             f"Do not propose it again -- change a DIFFERENT lever.")
                 continue
             seen.add(child.state_hash())
 
@@ -569,6 +578,17 @@ def main() -> int:
             if v in (Verdict.ADMIT_FRONT, Verdict.ADMIT_ARCHIVE, Verdict.ADMIT_STEP):
                 parent, parent_reward = child, info.get("reward", parent_reward)
                 last_admitted, last_reward = True, info.get("reward")
+            else:
+                # Roll the TREE back to `parent`. Without this the tree keeps
+                # the rejected design while `parent` does not, so the next
+                # proposer is told one state and edits another. For the agent
+                # that livelocks: it is shown the baseline, re-proposes the
+                # change the tree already contains, the readback returns the
+                # rejected state, and N21 dedups it -- forever. Observed on
+                # agent-1, which spent iterations 2-8 on sp_banks and recorded
+                # nothing after the first.
+                get(nodes.apply_design_state.options(**pg_opts)
+                    .chia_remote(json.dumps(parent.canonical())))
 
             record["wall_clock_s"] = round(time.time() - t_start, 2)
             (run_dir / f"iter_{it:03d}.json").write_text(json.dumps(record, indent=2))
