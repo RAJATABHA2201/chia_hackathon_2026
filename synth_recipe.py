@@ -158,11 +158,28 @@ def synthesize_recipe(generated_src_files: dict,
     shutil.rmtree(work, ignore_errors=True)
     os.makedirs(work, exist_ok=True)
 
-    r.staged_files = len(generated_src_files)
-    cone = gemmini_cone(generated_src_files, top_module)
+    # elaborate() returns a LIST of (filename, contents) pairs, not a mapping
+    # (synth_node.py:300 iterates it that way). Accept either, and keep only
+    # Verilog: the pair list also carries .top.mems.conf, which is
+    # memory-compiler input and would make yosys choke.
+    if isinstance(generated_src_files, dict):
+        pairs = list(generated_src_files.items())
+    else:
+        pairs = list(generated_src_files)
+    sources = {os.path.basename(n): c for n, c in pairs
+               if n.endswith((".v", ".sv"))}
+    # TestDriver and the Verilator harness are simulation collateral -- they
+    # instantiate $fatal/$fdisplay and are not synthesizable. plusarg_reader is
+    # dropped too; it is re-introduced as a blackbox stub below.
+    for bad in [k for k in sources
+                if k in ("TestDriver.v", "TestDriver.sv") or "plusarg" in k.lower()]:
+        del sources[bad]
+
+    r.staged_files = len(sources)
+    cone = gemmini_cone(sources, top_module)
     if not cone:
         r.stderr = (f"no module {top_module!r} found in "
-                    f"{len(generated_src_files)} generated files")
+                    f"{len(sources)} generated Verilog files")
         r.returncode = 2
         return r
     r.cone_files = len(cone)
@@ -173,7 +190,7 @@ def synthesize_recipe(generated_src_files: dict,
     # order. Done on COPIES; the originals are untouched.
     staged: list[str] = []
     for name in sorted(cone):
-        text = generated_src_files[name]
+        text = sources[name]
         if _ASSIGN_PATTERN_RE.search(text):
             text = _ASSIGN_PATTERN_RE.sub("= {", text)
             r.rewritten_files += 1
@@ -187,12 +204,12 @@ def synthesize_recipe(generated_src_files: dict,
         f.write(_STUBS)
 
     # Recipe blocker 4: the SRAM macros, read as blackboxes.
-    mems = [n for n in generated_src_files if n.endswith(".top.mems.v")]
+    mems = [n for n in sources if n.endswith(".top.mems.v")]
     mem_path = None
     if mems:
         mem_path = os.path.join(work, os.path.basename(mems[0]))
         with open(mem_path, "w") as f:
-            f.write(generated_src_files[mems[0]])
+            f.write(sources[mems[0]])
 
     netlist = os.path.join(work, f"{top_module}.mapped.v")
     script = [f"read_liberty -lib {liberty}",
