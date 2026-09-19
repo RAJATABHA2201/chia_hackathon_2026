@@ -62,13 +62,34 @@ ${COUNTERS}
    of your parent after the harness has paid 20–40 minutes for the build. This has already
    happened in this project.
 
-4. **Verify the edit landed.**
+4. **Verify the edit landed. The command must be exactly this one:**
 
    ```bash
-   git diff --stat -- ${PARAMS_PATH} ${PE_PATH} ${ZBU_PATH}
+   git -C ${CHIPYARD}/generators/gemmini status --short -- ${PARAMS_PATH} ${PE_PATH} ${ZBU_PATH}
    ```
 
-   No output means no edit. Fix it before continuing.
+   ` M` means modified, `??` means a new file you created. Either one means the edit
+   landed. No output at all means no edit.
+
+   **Every part of that command matters, and the obvious shorter forms all silently
+   report success as failure:**
+
+   - `git -C .../generators/gemmini` — your cwd is `${CHIPYARD}`, the SUPERPROJECT, and
+     `generators/gemmini` is a git SUBMODULE. Git does not descend into a submodule for a
+     path-limited status, so the same command run from `${CHIPYARD}` prints nothing no
+     matter what you changed. Absolute paths are fine once `-C` points at the submodule.
+   - `status`, not `diff` — `${PARAMS_PATH}` and `${ZBU_PATH}` are UNTRACKED (the harness
+     seeds the first, you create the second, and the tree reset removes both every
+     iteration). `git diff` never shows untracked files.
+
+   An agent run lost an entire iteration to this: it wrote the file correctly, ran the
+   wrong verification, saw nothing, rewrote it three times, concluded "the file writing
+   operation appears to be non-functional", and reported `technique: NONE` for a change
+   it had in fact made. If in doubt, skip git and read the file back:
+
+   ```bash
+   grep -n 'SPARSECRAFT' ${PARAMS_PATH}
+   ```
 
 5. **Compile, and do not end your turn on a failure.**
 
@@ -82,6 +103,21 @@ ${COUNTERS}
 6. If you touched `${PARAMS_PATH}`, keep every field explicit — do not collapse it back to
    `GemminiConfigs.leanConfig`. The file should read as the complete design point, and the
    harness parses the typed state back out of it.
+
+   **The RTL toggles are MARKER COMMENTS, not constructor fields.** `gate_enable`,
+   `zbu_enable`, `granule_size` and `zbu_operand` are not members of
+   `GemminiArrayConfig`. They live as `// SPARSECRAFT <name> = <int>` lines in the
+   header of `${PARAMS_PATH}`, and the harness parses them back out of the comments.
+   To enable T-A you edit the marker:
+
+   ```
+   // SPARSECRAFT gate_enable = 1      <- 1 enables, 0 disables
+   ```
+
+   Writing `gate_enable = true,` inside the `.copy(...)` call instead is a Scala type
+   error — `unknown parameter name: gate_enable` — and it fails the compile gate. That
+   has already cost an iteration in this project. Keep every `// SPARSECRAFT` line
+   present and well-formed: a missing one is not "unchanged", it is unparseable.
 
 7. End with the `==MUTATION==` and `==PREDICTION==` sections the system prompt requires.
 

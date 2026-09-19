@@ -140,7 +140,11 @@ Same rules as the proposer, for the same reasons:
 - **Never `sed` Chisel.** Rewrite whole files with a heredoc. `sed` exits 0 on no match, so
   a failed repair is indistinguishable from a successful one until the build has been paid
   for.
-- **Verify**: `git diff --stat -- ${PARAMS_PATH} ${PE_PATH} ${ZBU_PATH}`. No output, no edit.
+- **Verify**: `git -C ${CHIPYARD}/generators/gemmini status --short -- ${PARAMS_PATH} ${PE_PATH} ${ZBU_PATH}`.
+  ` M` is modified, `??` is a new file; either means it landed, nothing at all means it did
+  not. The `-C` is required (`generators/gemmini` is a submodule and git will not descend
+  into one for a path-limited status), and it must be `status`, not `diff` (`${PARAMS_PATH}`
+  and `${ZBU_PATH}` are untracked). Either shorter form reports a good write as a failure.
 - **Compile before ending the turn**: `cd ${CHIPYARD} && source env.sh && sbt -batch "project gemmini" compile 2>&1 | tail -40`.
   This is the whole point of a repair turn — do not hand back something you have not
   compiled.

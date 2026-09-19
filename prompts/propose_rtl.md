@@ -121,16 +121,26 @@ harness scores you as a duplicate of your parent — after paying for the full b
 is nested, brace-delimited and column-aligned; line-oriented substitution does not survive
 contact with it.
 
-Instead: **write the whole file with a heredoc, then verify with `git diff`.**
+Instead: **write the whole file with a heredoc, then verify with `git -C ... status`.**
 
 ```bash
 cat > generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala <<'EOF'
 ... the complete file ...
 EOF
-git diff --stat generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala
+git -C generators/gemmini status --short -- src/main/scala/gemmini/SparseCraftSparsity.scala
 ```
 
-If `git diff --stat` shows nothing, your edit did not land. Fix it before you end the turn.
+` M` means modified, `??` means a new file you created — either means the edit landed.
+Nothing at all means it did not.
+
+**Both halves of that command matter.** `generators/gemmini` is a git SUBMODULE, and git
+does not descend into one for a path-limited status, so the same query run from the
+chipyard root prints nothing however the file changed — you need the `-C`. And
+`SparseCraftSparsity.scala` is UNTRACKED (you create it; the tree reset removes it every
+iteration), so `git diff` cannot see it either. Using either shorter form reports a
+perfectly good write as a failure. That has already cost this project an iteration: the
+agent wrote the file, saw nothing, rewrote it three times, and concluded the editor tool
+was broken.
 
 **Compile before you finish.** You have a compile gate available and it takes 1–3 minutes
 against the 20 minutes an elaboration costs:
