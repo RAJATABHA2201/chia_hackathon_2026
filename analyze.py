@@ -211,8 +211,18 @@ def analyse(runs: list[dict], out: Path) -> str:
     for r in runs:
         its = r["iters"]
         meas = [i for i in its if (i.get("metrics") or {}).get("cycles")]
-        best = min((i for i in meas),
-                   key=lambda i: i["metrics"]["cycles"], default=None)
+        # Only ADMITTED designs may be the best result. A design can be
+        # measured and still be invalid: random-1 iteration 9 reported 80,564
+        # cycles -- a 12% "win" -- and was TRIPWIRE_FAILED, meaning its
+        # off-chip byte count fell below one full read of the inputs, so it
+        # cannot have computed the answer. Taking the minimum over every
+        # measured iteration would report exactly the design the integrity
+        # gate rejected, which is the one number that must never reach a paper.
+        admitted = [i for i in meas if str(i.get("verdict", "")).startswith("ADMIT")]
+        best = min(admitted, key=lambda i: i["metrics"]["cycles"], default=None)
+        rejected_better = [i for i in meas
+                           if not str(i.get("verdict", "")).startswith("ADMIT")
+                           and best and i["metrics"]["cycles"] < best["metrics"]["cycles"]]
         base = meas[0]["metrics"]["cycles"] if meas else None
         hw = sum(1 for i in its if (i.get("move") or {}).get("class") == "HW")
         sw = sum(1 for i in its if (i.get("move") or {}).get("class") == "SW")
@@ -224,8 +234,20 @@ def analyse(runs: list[dict], out: Path) -> str:
             f"- wall clock: {wall/3600:.1f} h ({wall/max(len(its),1)/60:.1f} min/iteration)",
         ]
         if base and best:
-            lines.append(f"- baseline {base:,} cycles -> best {best['metrics']['cycles']:,} "
-                         f"cycles (**{base/best['metrics']['cycles']:.2f}x**)")
+            lines.append(f"- baseline {base:,} cycles -> best ADMITTED "
+                         f"{best['metrics']['cycles']:,} cycles "
+                         f"(**{base/best['metrics']['cycles']:.3f}x**)")
+        for rb in rejected_better:   # NOT `r` -- that is the run being summarised
+            lines.append(f"- **rejected but faster**: {rb['metrics']['cycles']:,} cycles "
+                         f"at iteration {rb['iteration']}, verdict `{rb['verdict']}` "
+                         f"-- NOT a result, the gate refused it")
+        # A design that ties the baseline on measured cycles but is admitted on
+        # a MODELLED area difference is a phantom front point, not a finding.
+        ties = [i for i in admitted
+                if base and i["metrics"]["cycles"] == base and i["iteration"] > 1]
+        if ties:
+            lines.append(f"- phantom admissions (identical cycles to baseline, "
+                         f"admitted on modelled area): **{len(ties)}** of {len(admitted)}")
         srcs = {i.get("area_source") for i in its if i.get("area_source")}
         if srcs:
             lines.append(f"- area source(s): {', '.join(sorted(srcs))}"
