@@ -105,6 +105,24 @@ def apply_design_state(state_json: str, chipyard_path: str = CHIPYARD_PATH) -> A
                 with open(pe_path, "w") as f:
                     f.write(after)
                 wrote.append(RTL_FILES_REL[0])
+
+        # The ZBU seed, so iteration 1 has a working mechanism to IMPROVE
+        # rather than a blank file to invent against (task 3.3).
+        #
+        # ABSENT-ONLY, unlike the PE patch above, and the difference matters.
+        # PE.scala is tracked upstream, so a reset restores stock and the patch
+        # must be re-applied; its sentinel makes that a no-op once the agent
+        # has rewritten it. SparseCraftSparsity.scala is UNTRACKED and is
+        # restored by reset_and_apply_diff from the PARENT's diff. Re-seeding
+        # it unconditionally would overwrite the parent's evolved ZBU with the
+        # stub on every path that re-applies the parent state -- the T0
+        # rejection and duplicate paths -- silently undoing the search.
+        zbu_path = os.path.join(chipyard_path, RTL_FILES_REL[1])
+        if not os.path.exists(zbu_path):
+            os.makedirs(os.path.dirname(zbu_path), exist_ok=True)
+            with open(zbu_path, "w") as f:
+                f.write(rtl_scaffold.zbu_module_src())
+            wrote.append(RTL_FILES_REL[1])
         # MAC_GATED_TOTAL: two harness-owned files, re-patched after every
         # tree reset for the same reason as T-A. NOT agent-writable -- a
         # counter the agent could edit is a counter the agent could fake.

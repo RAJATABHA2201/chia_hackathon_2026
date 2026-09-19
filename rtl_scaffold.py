@@ -245,6 +245,86 @@ if __name__ == "__main__":
 ZBU_SENTINEL = "// SPARSECRAFT-ZBU"
 
 
+# ---------------------------------------------------------------------------
+# The ZBU as an AGENT-OWNED MODULE.
+#
+# It used to live inline inside the Scratchpad patch, which made
+# SparseCraftSparsity.scala a dead writable slot: the prompt called it "yours
+# to write and rewrite", but nothing instantiated it, so anything the agent
+# wrote there compiled, elaborated to a byte-identical netlist and came back
+# as N12b RTL_NOOP -- after paying a full elaboration. Task 3.3.
+#
+# Scratchpad.scala stays harness-owned and now only WIRES this module up. The
+# mechanism itself -- granularity, how the bit is computed, what is remembered
+# -- is the agent's, which is the whole point of T-B being a search target.
+# ---------------------------------------------------------------------------
+def zbu_module_src() -> str:
+    """The seed SparseCraftSparsity.scala: a minimal, correct ZBU."""
+    return '''// See README.md for license details.
+package gemmini
+
+import chisel3._
+import chisel3.util._
+
+/** Zero-Bitmap Unit (ZBU) -- T-B: zero-granule skipping.
+  *
+  * ==== INTERFACE -- THIS PORT LIST IS A CONTRACT ====
+  *
+  * Scratchpad.scala is harness-owned and instantiates this module verbatim.
+  * It will not adapt to a changed port list, so renaming or re-typing a port
+  * fails elaboration. Everything INSIDE the module is yours.
+  *
+  *   n   rows in the bank -- one bitmap bit per row
+  *   w   row width in bits
+  *
+  *   io.write_fire  Input  Bool       a write is landing this cycle
+  *   io.write_addr  Input  UInt       its row
+  *   io.write_data  Input  UInt(w.W)  its data
+  *   io.write_full  Input  Bool       the write covers the WHOLE row
+  *   io.read_addr   Input  UInt       the row being read this cycle
+  *   io.read_en     Input  Bool       a read is being issued this cycle
+  *   io.skip        Output Bool       this read may be skipped: row is zero
+  *
+  * ==== SEMANTICS THE HARNESS RELIES ON ====
+  *
+  *  - `skip` may be high ONLY when the row is KNOWN to be entirely zero.
+  *    Skipping a zero row is bit-exact: the scratchpad returns a hard zero
+  *    instead of reading it, which is the same value. A WRONGLY set bit
+  *    silently corrupts the result and N41 will fail the iteration.
+  *  - A partial (masked) write must CLEAR the bit -- the row is then partly
+  *    unknown. A cleared bit is always safe, so conservative is correct.
+  *
+  * ==== WHAT TO TRY ====
+  *
+  * The seed tracks one bit per row at granule = DIM. Finer granularity finds
+  * more zeros but costs more bitmap state; tracking the B operand as well as A
+  * catches a different population; remembering a count rather than a flag lets
+  * you skip partially.
+  */
+class SparseCraftZBU(n: Int, w: Int) extends Module {
+  val io = IO(new Bundle {
+    val write_fire = Input(Bool())
+    val write_addr = Input(UInt(log2Ceil(n).W))
+    val write_data = Input(UInt(w.W))
+    val write_full = Input(Bool())
+    val read_addr  = Input(UInt(log2Ceil(n).W))
+    val read_en    = Input(Bool())
+    val skip       = Output(Bool())
+  })
+
+  // One bit per row. At granule_size = DIM a row IS a granule.
+  val bitmap = RegInit(VecInit(Seq.fill(n)(false.B)))
+
+  // Set only on a FULL-WIDTH zero write; any masked write clears it.
+  when (io.write_fire) {
+    bitmap(io.write_addr) := io.write_full && (io.write_data === 0.U)
+  }
+
+  io.skip := bitmap(io.read_addr) && io.read_en
+}
+'''
+
+
 def apply_tb(sp_src: str):
     """Patch Scratchpad.scala with the ZBU. Idempotent."""
     if ZBU_SENTINEL in sp_src:
@@ -285,22 +365,31 @@ def apply_tb(sp_src: str):
         raise RuntimeError("Scratchpad.scala: SyncReadMem read block not found")
     new = f"""    val raddr = io.read.req.bits.addr
 
-    {ZBU_SENTINEL} -- one bit per row; a row is a granule at granule_size=DIM.
-    // The ENTIRE structure lives inside a Scala `if`, so with zbuEnable false
-    // not one register or port is emitted and the netlist stays byte-identical
-    // to stock. Declaring the 4096-entry Vec unconditionally would leave it
-    // driven-but-unread, which firtool is not obliged to prune -- the same
-    // mistake that contaminated the first T-A baseline (Sec 9h).
+    {ZBU_SENTINEL} -- the mechanism itself lives in SparseCraftSparsity.scala,
+    // which the AGENT owns. This file only wires it up. Keeping the bitmap
+    // here instead made that file a dead writable slot: nothing instantiated
+    // it, so an agent edit elaborated to an identical netlist and came back as
+    // N12b RTL_NOOP after a full elaboration had been paid for (task 3.3).
+    //
+    // The instantiation is INSIDE a Scala `if`, so with zbuEnable false the
+    // module is never elaborated -- not one register or port is emitted and
+    // the netlist stays byte-identical to stock. Instantiating it
+    // unconditionally would leave it driven-but-unread, which firtool is not
+    // obliged to prune: the same mistake that contaminated the first T-A
+    // baseline (Sec 9h).
     val sc_skip = if (SparseCraftRTL.zbuEnable) {{
-      // Set only on a FULL-WIDTH zero write. A masked write leaves the row
-      // partly unknown, so the bit is cleared and the row is read normally --
-      // a cleared bit is always safe, so conservative is the correct default.
-      val sc_zbu = RegInit(VecInit(Seq.fill(n)(false.B)))
-      when (io.write.fire) {{
-        val sc_full = if (aligned_to >= w) true.B else io.write.mask.asUInt.andR
-        sc_zbu(io.write.addr) := sc_full && (io.write.data.asUInt === 0.U)
-      }}
-      sc_zbu(raddr) && ren
+      val sc_zbu = Module(new SparseCraftZBU(n, w))
+      sc_zbu.io.write_fire := io.write.fire
+      sc_zbu.io.write_addr := io.write.addr
+      sc_zbu.io.write_data := io.write.data.asUInt
+      // A masked write leaves the row partly unknown, so the module clears the
+      // bit unless the write covers the whole row. `aligned_to >= w` means the
+      // bank has no mask granularity finer than a row, so every write is full.
+      sc_zbu.io.write_full := (if (aligned_to >= w) true.B
+                               else io.write.mask.asUInt.andR)
+      sc_zbu.io.read_addr := raddr
+      sc_zbu.io.read_en := ren
+      sc_zbu.io.skip
     }} else false.B
     io.sc_zbu_skip.foreach(_ := sc_skip)
 

@@ -267,6 +267,14 @@ def main() -> int:
     ap.add_argument("--gate", action="store_true",
                     help="enable T-A zero-gated MAC (SparseCraftRTL.gateEnable). "
                          "Changes hw_hash, so it forces a fresh elaboration.")
+    ap.add_argument("--zbu", action="store_true",
+                    help="enable T-B zero-granule skipping (SparseCraftRTL.zbuEnable), "
+                         "which instantiates the agent-owned SparseCraftZBU module from "
+                         "Scratchpad.scala. The counterpart of --gate, and the only way "
+                         "to exercise the ENABLED ZBU path without an agent -- needed to "
+                         "prove the module is really wired in rather than dead code "
+                         "(N12b RTL_NOOP). Changes hw_hash, so it forces a fresh "
+                         "elaboration.")
     ap.add_argument("--dense", action="store_true",
                     help="B0 baseline: walk EVERY block including the "
                          "structurally zero ones, i.e. a GEMM that ignores "
@@ -329,13 +337,15 @@ def main() -> int:
     # Apply the CLI overrides to the baseline BEFORE anything is written or
     # hashed, so the cache key and the trace both describe what actually ran.
     global BASELINE
-    if args.workload or args.dense or args.gate:
+    if args.workload or args.dense or args.gate or args.zbu:
         BASELINE = BASELINE.mutate(
             **({"workload": args.workload} if args.workload else {}),
             **({"dense_mode": True} if args.dense else {}),
-            **({"gate_enable": True} if args.gate else {}))
+            **({"gate_enable": True} if args.gate else {}),
+            **({"zbu_enable": True} if args.zbu else {}))
         print(f"baseline override: workload={BASELINE.workload} "
-              f"dense_mode={BASELINE.dense_mode} gate_enable={BASELINE.gate_enable}")
+              f"dense_mode={BASELINE.dense_mode} gate_enable={BASELINE.gate_enable} "
+              f"zbu_enable={BASELINE.zbu_enable}")
 
     run_dir = Path(C.RUN_DIR) / args.run_name
     run_dir.mkdir(parents=True, exist_ok=True)
