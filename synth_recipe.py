@@ -204,12 +204,28 @@ def synthesize_recipe(generated_src_files: dict,
         f.write(_STUBS)
 
     # Recipe blocker 4: the SRAM macros, read as blackboxes.
+    #
+    # ...and they must NOT also be read as source. Reading `.top.mems.v` with
+    # `-lib` declares the macros as blackboxes, but the staged loop below
+    # re-reads every staged file with `-sv`, and the full source overrides the
+    # blackbox -- so yosys synthesises the scratchpad into FLIP-FLOPS.
+    # Measured: 12,323,033 cells / 24.5 mm2, against ~1.4M / 1.71 mm2 when the
+    # macros stay black. Sec 9f records this fix; it was never actually in the
+    # code (the third documented-but-unimplemented fix found today, after the
+    # yosys `'{` rewrite and the loop calling synth_node at all).
     mems = [n for n in sources if n.endswith(".top.mems.v")]
     mem_path = None
     if mems:
         mem_path = os.path.join(work, os.path.basename(mems[0]))
         with open(mem_path, "w") as f:
             f.write(sources[mems[0]])
+        _mem_bases = {os.path.basename(m) for m in mems}
+        _before = len(staged)
+        staged = [p_ for p_ in staged
+                  if os.path.basename(p_) not in _mem_bases]
+        if len(staged) != _before:
+            logger.info("T3: %d memory file(s) held as blackboxes, not source",
+                        _before - len(staged))
 
     netlist = os.path.join(work, f"{top_module}.mapped.v")
     script = [f"read_liberty -lib {liberty}",

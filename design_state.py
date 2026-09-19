@@ -70,10 +70,48 @@ class DesignState:
 
     # --- software-side tiling (drives the kernel, not the RTL) ---
     # Separated out so a tiling-only mutation can skip elaboration entirely.
-    block_size: int = 32
-    tile_m: int = 16
-    tile_n: int = 16
-    tile_k: int = 16
+    # --- L0 RTL sparsity microarchitecture --------------------------------
+    # These are NOT config knobs on stock Gemmini: they parameterise the RTL
+    # the loop adds. They live in the design state so T0 can check them, the
+    # cache can key on them, and the non-agentic control arms can search the
+    # same axes the agent does (plan D6).
+    #
+    #   gate_enable    T-A: zero-operand gating in the PE (PE.scala).
+    #                  Energy only -- a gated PE still occupies its pipeline
+    #                  slot, so cycles are unchanged by construction.
+    #   zbu_enable     T-B: zero-granule skip (SparseCraftSparsity.scala).
+    #   granule_size   detection granularity in elements. MUST divide the
+    #                  array dimension. 1 = per element, DIM = whole row.
+    #   zbu_operand    which operand the bitmap is built over.
+    gate_enable: bool = False
+    zbu_enable: bool = False
+    granule_size: int = 16
+    zbu_operand: str = "A"          # "A" | "B" | "BOTH"
+
+    # --- software-side tiling (drives the kernel, not the RTL) ------------
+    # dense_mode selects the B0 baseline: walk every block including the
+    # structurally zero ones, i.e. a GEMM that ignores sparsity entirely.
+    workload: str = "dnn512"        # which generated header the kernel builds against
+    dense_mode: bool = False
+
+    # ---- SOFTWARE SCHEDULE (the SW half of HW/SW co-design) ---------------
+    # Compile-time knobs on the kernel's Gemmini instruction schedule. They
+    # change HOW the work is issued, never WHAT is computed: the golden check,
+    # the timed region and the block walk are untouched, so N41 still gates
+    # correctness and no setting can improve a score by computing less.
+    #
+    # These exist because hand-tuning exactly this layer produced the largest
+    # result in the project so far (accumulator-resident scheduling: 2.00x
+    # energy, 4.51x cycles). Leaving it outside the loop meant the agent could
+    # not reach the lever that mattered most.
+    #
+    # k_chunk couples DIRECTLY to sp_capacity_kb, which is a HARDWARE lever:
+    # one pass stages k_chunk*DIM rows of A and k_chunk*(N/DIM)*DIM rows of B,
+    # so a bigger chunk needs a bigger scratchpad. T0 rejects the combinations
+    # that do not fit. That coupling is the co-design.
+    k_chunk: int = 16               # K-blocks accumulated per resident pass
+    b_blocks: int = 0               # B mvin width in DIM-column tiles; 0 = auto
+    a_blocks: int = 1               # A mvin width in DIM-column tiles
 
     # ---------------------------------------------------------------- keys --
     # Fields that change the elaborated hardware. Everything not listed here is
@@ -87,8 +125,11 @@ class DesignState:
         "reservation_station_entries_ld", "reservation_station_entries_st",
         "reservation_station_entries_ex",
         "has_normalizations", "mvin_scale_shared", "num_counter",
+        # The RTL sparsity parameters change the generated Verilog, so they
+        # belong to the elaboration cache key, not the software one.
+        "gate_enable", "zbu_enable", "granule_size", "zbu_operand",
     )
-    SW_FIELDS = ("block_size", "tile_m", "tile_n", "tile_k")
+    SW_FIELDS = ("workload", "dense_mode", "k_chunk", "b_blocks", "a_blocks")
 
     # --------------------------------------------------------------- derived -
     @property
@@ -156,13 +197,20 @@ class DesignState:
         return f"""// SparseCraft design point.
 // hash: {self.state_hash()}   hw: {self.hw_hash()}   sw: {self.sw_hash()}
 //
-// The four SPARSECRAFT lines below are SOFTWARE-side tiling. They are compiler
+// The SPARSECRAFT lines below are SOFTWARE-side: tiling and the
+// sparsity pattern. They are compiler
 // defines, not Chisel parameters, so they live in comments -- but the harness
 // parses them back out, so they must be kept and kept well-formed.
-// SPARSECRAFT block_size = {self.block_size}
-// SPARSECRAFT tile_m = {self.tile_m}
-// SPARSECRAFT tile_n = {self.tile_n}
-// SPARSECRAFT tile_k = {self.tile_k}
+// SPARSECRAFT workload = {self.workload}
+// SPARSECRAFT dense_mode = {int(self.dense_mode)}
+// The four below are RTL-microarchitecture parameters. They are markers, NOT
+// GemminiArrayConfig fields, until Phase 3 adds the corresponding Chisel
+// parameters -- emitting them as `.copy(gate_enable = ...)` before the field
+// exists makes elaboration fail with a Scala type error.
+// SPARSECRAFT gate_enable = {int(self.gate_enable)}
+// SPARSECRAFT zbu_enable = {int(self.zbu_enable)}
+// SPARSECRAFT granule_size = {self.granule_size}
+// SPARSECRAFT zbu_operand = {self.zbu_operand}
 package gemmini
 
 import chisel3._
@@ -206,7 +254,12 @@ object SparseCraftParams {{
     num_counter = {self.num_counter},
 
     // --- leanConfig deltas, kept explicit ---
-    acc_read_full_width       = false,
+    // TRUE, not false. The SpMM golden reference ranges past +-400, and a
+    // narrowed accumulator read clips at elem_t (+-127), so the equivalence
+    // gate would fail a CORRECT design -- the worst kind of gate failure,
+    // because it looks like the agent broke correctness. The kernel passes
+    // full_C=true and reads acc_t out, which requires this.
+    acc_read_full_width       = true,
     ex_read_from_acc          = false,
     ex_write_to_spad          = false,
     hardcode_d_to_garbage_addr = true,
@@ -221,6 +274,46 @@ object SparseCraftParams {{
     def from_dict(cls, d: dict) -> "DesignState":
         known = {f.name for f in fields(cls)}
         return cls(**{k: v for k, v in d.items() if k in known})
+
+
+    # --------------------------------------------------- RTL param emitter -
+    def to_rtl_scala(self) -> str:
+        """Emit SparseCraftRTL.scala -- the RTL microarchitecture parameters.
+
+        These are deliberately NOT GemminiArrayConfig fields. Adding them to
+        that case class would mean plumbing them through Mesh -> Tile -> PE,
+        touching four upstream files for no benefit: PE.scala can read a Scala
+        `val` directly, and because it is elaboration-time constant, Chisel
+        specialises the generated Verilog exactly as it would for a parameter.
+        A `false` here emits no gating hardware at all, not a disabled mux.
+        """
+        b = lambda v: "true" if v else "false"   # noqa: E731
+        return f"""// GENERATED BY THE SPARSECRAFT LOOP -- do not hand-edit.
+// hash: {self.state_hash()}   hw: {self.hw_hash()}
+package gemmini
+
+/** RTL microarchitecture parameters for the SparseCraft sparsity extensions.
+  *
+  * Elaboration-time constants. Each `false`/`0` must elaborate to EXACTLY the
+  * stock Gemmini netlist -- that is the property the baseline depends on, and
+  * it is what makes an A/B against vanilla hardware meaningful.
+  */
+object SparseCraftRTL {{
+  /** T-A: gate the MAC when an operand is zero. Energy only; a gated PE still
+    * occupies its pipeline slot, so cycles are unchanged by construction. */
+  val gateEnable: Boolean = {b(self.gate_enable)}
+
+  /** T-B: zero-granule skip via the ZBU. */
+  val zbuEnable: Boolean = {b(self.zbu_enable)}
+
+  /** Zero-detection granularity, in elements. Must divide the array
+    * dimension; T0 rejects any state where it does not. */
+  val granuleSize: Int = {self.granule_size}
+
+  /** Which operand the bitmap is built over: "A", "B" or "BOTH". */
+  val zbuOperand: String = "{self.zbu_operand}"
+}}
+"""
 
 
 # The Chipyard-side harness config. Written once at setup and never mutated --

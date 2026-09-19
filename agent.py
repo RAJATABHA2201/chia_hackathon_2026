@@ -73,6 +73,24 @@ PROVIDERS: dict[str, dict] = {
         "kind": "vertex",
         "base_url": None,
         "env": ("GOOGLE_CLOUD_PROJECT",),
+        # Pro, not Flash. Measured 2026-09-19: the WHOLE planned study (3 arms x
+        # 15 iterations + repair turns + 3x for false starts) costs ~$8 at Pro
+        # rates and ~$2 at Flash rates, against $250 of credits -- so price is
+        # not a input to this choice. Wall clock is: a proposal that compiles
+        # but is semantically wrong costs a full ~30 min iteration, and N12
+        # cannot catch that class. 5 of 12 iterations in runs/agent-1 were
+        # DUPLICATE on the EASY config-only task.
+        #
+        # NOTE the Pro line in this project stops at 3.1-preview while Flash
+        # reaches 3.8, so tier and generation point in opposite directions.
+        # 3.1-pro-preview is the newest Pro and the default; gemini-2.5-pro is
+        # the documented fallback and is the only model verified end-to-end
+        # through THIS harness including MCP tool calling (smoke_agent.py).
+        # Validate tool calling with smoke_agent.py before the first long run.
+        # gemini-2.5-pro, NOT 3.1-pro-preview: it is the only model verified end
+        # to end through THIS harness including MCP tool calling (smoke_agent.py).
+        # A preview model on top of CHIA's own experimental VertexGeminiLLM is two
+        # unknowns stacked, for a run that goes unattended for hours.
         "default_model": "gemini-2.5-pro",
         "needs": "google.genai",
         "get_key": "gcloud auth application-default login, "

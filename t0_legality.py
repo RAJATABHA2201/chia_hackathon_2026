@@ -71,6 +71,10 @@ class Derived:
     total_acc_tiles: int
 
 
+# Dense width of X in the generated SpMM workloads (workload/prep_matrices.py --n).
+SPMM_N = 64
+
+
 def derive(s: DesignState) -> Derived:
     block_rows = s.meshRows * s.tileRows
     block_cols = s.meshColumns * s.tileColumns
@@ -139,28 +143,76 @@ def check(s: DesignState, *, predicted_area_um2: float | None = None) -> Verdict
                  f"({INPUT_W} != {ACC_W})")
 
     # --- Family 2: review Sec 2.3 rules -----------------------------------
-    if s.tile_n <= 0 or s.tile_m <= 0 or s.tile_k <= 0:
-        v.append(f"tiling.positive: (T_m,T_n,T_k)=({s.tile_m},{s.tile_n},{s.tile_k}) must be positive")
+    # --- SpMM tiling ------------------------------------------------------
+    # The kernel walks DIM x DIM blocks, so the tile IS the array dimension:
+    # there are no independent T_m/T_n/T_k knobs any more. What must hold is
+    # that one A block, one X panel and one Y panel fit the scratchpad and
+    # accumulator at the chosen array size.
+    working_bytes = (d.dim * d.dim + d.dim * SPMM_N) * INPUT_BYTES * 2
+    if working_bytes > s.sp_capacity_kb * 1024:
+        v.append(f"capacity.sp: working set {working_bytes}B "
+                 f"exceeds sp_capacity {s.sp_capacity_kb}KB")
+    acc_needed = d.dim * SPMM_N * ACC_BYTES
+    if acc_needed > s.acc_capacity_kb * 1024:
+        v.append(f"capacity.acc: {acc_needed}B exceeds acc_capacity "
+                 f"{s.acc_capacity_kb}KB")
+    if d.acc_rows < d.dim:
+        v.append(f"capacity.acc_rows: acc_rows {d.acc_rows} < dim {d.dim}")
+
+    # --- L0 RTL sparsity microarchitecture --------------------------------
+    if s.granule_size <= 0:
+        v.append(f"zbu.granule_positive: granule_size {s.granule_size} must be > 0")
+    elif d.dim % s.granule_size != 0:
+        v.append(f"zbu.granule_divides_dim: granule_size {s.granule_size} "
+                 f"does not divide array dimension {d.dim}")
+    if s.zbu_operand not in ("A", "B", "BOTH"):
+        v.append(f"zbu.operand: {s.zbu_operand!r} not in (A, B, BOTH)")
+    if s.zbu_enable:
+        # One bit per granule per scratchpad row. Must not eat the scratchpad
+        # it is meant to make cheaper.
+        bitmap_bits = d.sp_rows * (d.dim // max(1, s.granule_size))
+        if bitmap_bits > s.sp_capacity_kb * 1024 * 8 * 0.05:
+            v.append(f"zbu.bitmap_budget: bitmap {bitmap_bits} bits exceeds 5% of "
+                     f"scratchpad ({s.sp_capacity_kb}KB) -- granule too fine")
+
+    # --- L0 SOFTWARE SCHEDULE, and its coupling to the hardware -----------
+    # This is the HW/SW co-design constraint, enforced rather than trusted.
+    # One accumulator-resident pass stages, in the scratchpad:
+    #     A:  k_chunk * dim              rows
+    #     B:  k_chunk * (N/dim) * dim    rows
+    # so the SOFTWARE chunk depth is bounded by the HARDWARE scratchpad size.
+    # Raising k_chunk without raising sp_capacity_kb is illegal, and the agent
+    # has to move both together -- which is the whole point of co-design.
+    if s.k_chunk < 1:
+        v.append(f"sched.k_chunk_positive: k_chunk {s.k_chunk} must be >= 1")
     else:
-        if s.block_size % s.tile_n != 0:
-            v.append(f"tiling.block_div_tn: B ({s.block_size}) mod T_n ({s.tile_n}) != 0")
-        if s.block_size % s.tile_m != 0:
-            v.append(f"tiling.block_div_tm: B ({s.block_size}) mod T_m ({s.tile_m}) != 0")
+        j_tiles = max(1, SPMM_N // d.dim)
+        need_rows = s.k_chunk * d.dim * (1 + j_tiles)
+        if need_rows > d.sp_rows:
+            v.append(f"sched.k_chunk_fits_scratchpad: k_chunk {s.k_chunk} needs "
+                     f"{need_rows} scratchpad rows (A {s.k_chunk * d.dim} + "
+                     f"B {s.k_chunk * d.dim * j_tiles}) but sp_capacity_kb "
+                     f"{s.sp_capacity_kb} gives only {d.sp_rows} -- raise the "
+                     f"scratchpad or lower k_chunk")
 
-        # Working set must fit the scratchpad. Double-buffered => x2.
-        working_bytes = (s.tile_m * s.tile_k + s.tile_k * s.tile_n
-                         + s.tile_m * s.tile_n) * INPUT_BYTES * 2
-        sp_bytes = s.sp_capacity_kb * 1024
-        if working_bytes > sp_bytes:
-            v.append(f"capacity.working_set: {working_bytes} B double-buffered working set "
-                     f"exceeds sp_capacity {sp_bytes} B")
+    # gemmini moves at most MAX_BLOCK_LEN = dma_maxbytes/dim tiles per mvin, so
+    # the SOFTWARE mvin width is bounded by the HARDWARE DMA width. Second
+    # coupling, same idea.
+    max_block_len = max(1, s.dma_maxbytes // d.dim)
+    if s.b_blocks < 0:
+        v.append(f"sched.b_blocks_nonneg: b_blocks {s.b_blocks} must be >= 0")
+    elif s.b_blocks > max_block_len:
+        v.append(f"sched.b_blocks_dma: b_blocks {s.b_blocks} exceeds "
+                 f"MAX_BLOCK_LEN {max_block_len} implied by dma_maxbytes "
+                 f"{s.dma_maxbytes} at dim {d.dim}")
 
-        acc_needed = s.tile_m * s.tile_n * ACC_BYTES
-        if acc_needed > s.acc_capacity_kb * 1024:
-            v.append(f"capacity.acc: T_m*T_n*acc_bytes = {acc_needed} B exceeds "
-                     f"acc_capacity {s.acc_capacity_kb * 1024} B")
-        if d.acc_rows < s.tile_m:
-            v.append(f"capacity.acc_rows: acc_rows {d.acc_rows} < T_m {s.tile_m}")
+    # A batching would read consecutive blocks as one (dim x blocks*dim)
+    # matrix at row stride dim, which is NOT the [block][row][col] layout
+    # prep_matrices.py emits. Correct only at 1 until that layout changes.
+    # Rejected here rather than left to produce silently wrong data.
+    if s.a_blocks != 1:
+        v.append(f"sched.a_blocks_layout: a_blocks {s.a_blocks} != 1 is "
+                 f"incompatible with the [block][row][col] A layout")
 
     if s.sp_banks < CONCURRENT_GATHER_STREAMS:
         v.append(f"banking.gather_streams: sp_banks {s.sp_banks} < "
@@ -194,9 +246,29 @@ def check(s: DesignState, *, predicted_area_um2: float | None = None) -> Verdict
 # N13 -- patch scope allowlist. Enforced programmatically before git apply,
 # never by prompt instruction (review L-inf).
 # --------------------------------------------------------------------------
-from constants import PARAMS_FILE_REL  # noqa: E402
+from constants import PARAMS_FILE_REL, RTL_FILES_REL  # noqa: E402
 
-WRITABLE_PATHS = frozenset({PARAMS_FILE_REL})
+# The agent's writable set. Phase 3 widens this from one config file to the
+# RTL it is meant to author.
+#
+#   PARAMS_FILE_REL          the typed config point (SparseCraftParams.scala)
+#   PE.scala                 T-A lives here: 147 lines, one module, and the
+#                            change is provably bit-exact
+#   SparseCraftSparsity.scala  T-B's ZBU -- the agent writes and rewrites it
+#
+# DELIBERATELY NOT INCLUDED, and this is the D1 decision:
+#   SparseCraftRTL.scala     harness-generated from the design state every
+#                            iteration. The agent changes the MECHANISM; the
+#                            harness sets the knobs. Letting the agent write
+#                            it would let it flip gate_enable without the
+#                            design state -- and therefore the cache key,
+#                            the archive descriptor and T0 -- ever knowing.
+#   Scratchpad / ExecuteController / CounterFile
+#                            the three ZBU integration hooks. Integrating into
+#                            a 1037-line controller is where an LLM silently
+#                            breaks the pipeline; the interesting design space
+#                            is INSIDE the ZBU module, which the agent owns.
+WRITABLE_PATHS = frozenset({PARAMS_FILE_REL} | set(RTL_FILES_REL))
 
 
 def check_patch_scope(paths, harness_paths=()) -> Verdict:

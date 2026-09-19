@@ -39,7 +39,40 @@ available_node_types:
     # (vertex_creds, openai_creds, ...). The loop overrides that with `llm` at
     # dispatch, but advertising them keeps a direct
     # `llm.prompt.chia_remote(...)` -- no .options() -- schedulable too.
+    # ---------------------------------------------------------------------
+    # !! num_cpus BELOW IS CURRENTLY INERT -- CHIA DOES NOT READ IT. !!
+    #
+    # Verified 2026-09-19: `NodeTypeConfig` (chia/cluster/config.py:168) has no
+    # num_cpus field, and the `ray start` command CHIA builds
+    # (chia/cluster/worker_provisioner.py:442) passes only --resources, never
+    # --num-cpus. The keys are kept as the DOCUMENTED INTENT and as the values
+    # to use if CHIA is ever patched, but they change nothing today.
+    #
+    # What this means in practice: CPU stays advertised at 7 x 64 = 448. That
+    # is cosmetically wrong but largely harmless HERE, because every node in
+    # this loop gates on a CUSTOM resource (chipyard / verilator_run / hammer)
+    # and those ceilings ARE honest. A task requesting only CPU would be
+    # over-scheduled; this loop has none.
+    #
+    # The memory win came from parallelism.md Rule 4 fix #4 (restart to clear
+    # leaks), not #1. Measured: 11.0 GB / 84 procs / 64 idle workers
+    # -> 5.2 GB / 19 procs / 0 idle workers.
+    #
+    # See ../parallelism.md Rule 4.
+    #
+    # Without it each colocated node advertises the WHOLE box. Measured
+    # 2026-09-19 with 7 groups on one host: Ray believed it had 448 CPUs
+    # (64 real) and 129.5 GiB (32 real) -- 7x and 4x oversubscribed. It then
+    # pre-spawned 64 ray::IDLE workers and held 11.0 GB across 84 processes
+    # while completely idle, which is what OOM-killed a Chisel elaboration at
+    # minute 19 of a 20-minute build.
+    #
+    # The totals below sum to 50 <= 64. Keep it that way when editing.
+    #   head_local 4 + chipyard 16 + verilator 16 + hammer 8
+    #   + database 2 + riscv_build 4 = 50
+    # ---------------------------------------------------------------------
     head_local:
+        num_cpus: 4
         resources: {"head_local": 8, "llm": 2, "openai_creds": 2,
                     "vertex_creds": 2, "anthropic_creds": 2}
         num_workers: 1
@@ -51,6 +84,7 @@ available_node_types:
     # (which needs the elaboration-generated gemmini_params.h, so it lives here
     # rather than on the riscv_build worker).
     chipyard:
+        num_cpus: 16
         resources: {"chipyard": 2}
         num_workers: 1
         compatible_ips: ["${THIS_MACHINE}"]
@@ -70,7 +104,13 @@ available_node_types:
     # from the chipyard image, and this image ships byte-identical copies.
     # libriscv.so IS the golden model.
     verilator:
-        resources: {"verilator_run": 12}
+        num_cpus: 16
+        # 4, not 12. parallelism.md Rule 1: concurrent_sims x
+        # VERILATOR_THREADS <= 64, and constants.VERILATOR_THREADS is 16.
+        # 12 sims x 16 threads = 192 on a 64-core box, and Verilator
+        # spin-waits, so oversubscription burns cycles rather than degrading
+        # gracefully. Raise this only if you lower VERILATOR_THREADS to match.
+        resources: {"verilator_run": 4}
         num_workers: 1
         compatible_ips: ["${THIS_MACHINE}"]
         docker:
@@ -94,6 +134,7 @@ available_node_types:
     # concurrent Chisel elaboration is already claiming 8-12 GB of the 30 GB on
     # this host. One at a time is the honest ceiling.
     hammer:
+        num_cpus: 8
         resources: {"hammer": 1}
         num_workers: 1
         compatible_ips: ["${THIS_MACHINE}"]
@@ -135,6 +176,7 @@ available_node_types:
     # are produced -- incremental archival, so a mid-run kill keeps everything
     # logged so far rather than only an end-of-run tar.
     database:
+        num_cpus: 2
         resources: {"database": 2}
         num_workers: 1
         compatible_ips: ["${THIS_MACHINE}"]
@@ -144,6 +186,7 @@ available_node_types:
     # Standalone cross-compilation for kernels that do not need the generated
     # Gemmini header (golden-reference generators, canary payloads).
     riscv_build:
+        num_cpus: 4
         resources: {"riscv_build": 4}
         num_workers: 1
         compatible_ips: ["${THIS_MACHINE}"]

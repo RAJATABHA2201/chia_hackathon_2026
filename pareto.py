@@ -152,7 +152,7 @@ def format_for(block_size: int, n_blocks: int, density: float) -> str:
 
 
 def descriptor(state, true_density: float, n_blocks: int = 128) -> Tuple:
-    b = max(1, state.block_size)
+    b = max(1, state.granule_size)
     dens_eff = effective_density(true_density, b)
     format_class = format_for(b, n_blocks, dens_eff)
     log2b = int(math.log2(b)) if (b & (b - 1)) == 0 else int(math.log2(b))

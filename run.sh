@@ -98,7 +98,11 @@ mkdir -p "$TMPDIR"
 #
 # Both are :- defaults, so exporting either one before calling still wins.
 export GOOGLE_CLOUD_PROJECT="${GOOGLE_CLOUD_PROJECT:-chia-hackathon-2026}"
-export GOOGLE_CLOUD_LOCATION="${GOOGLE_CLOUD_LOCATION:-us-central1}"
+# "global", not a region. Measured 2026-09-19: gemini-3.8-flash (and every
+# other Gemini 3.x) 404s with NOT_FOUND in us-central1 and us-east5, and is
+# served ONLY from the global endpoint. gemini-2.5-pro works on global too, so
+# this default is strictly safer than a region for every model we use.
+export GOOGLE_CLOUD_LOCATION="${GOOGLE_CLOUD_LOCATION:-global}"
 THIS_MACHINE="$(hostname -I | awk '{print $1}')"
 export THIS_MACHINE
 echo "head ip: $THIS_MACHINE"

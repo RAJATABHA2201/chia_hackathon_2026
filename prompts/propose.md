@@ -111,6 +111,20 @@ to you by name.
 
 ## Levers
 
+- **L0 sparsity pattern** — `sparsity_pattern`, `window_blocks`, `global_blocks`,
+  `stride_blocks`. This is the lever with the largest reach: it decides which
+  score blocks are computed at all, and spans 12.5%-56% density.
+  - `causal` — every block in the causal triangle. The dense reference.
+  - `sliding_window` — a local band of `window_blocks` (Longformer).
+  - `window_global` — that band plus the first `global_blocks` columns, which
+    every row attends (Longformer/BigBird global tokens).
+  - `strided` — the band plus every `stride_blocks`-th block further back
+    (Sparse Transformer).
+
+  It couples to the hardware and you should move both: `window_blocks` x
+  `block_size` is the token span, a narrow window shrinks the working set so a
+  large scratchpad becomes wasted area, and `strided` scatters the DMA reads so
+  it wants more `max_in_flight_mem_reqs` than a contiguous window does.
 - **L1 tiling / dataflow** — `block_size` only. Large `B` gives dense regular tiles
   but inflates effective density; small `B` tightens coverage but blows up metadata
   and DMA descriptors.

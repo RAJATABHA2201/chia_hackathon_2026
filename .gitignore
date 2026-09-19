@@ -18,3 +18,18 @@ cache/
 
 # Logs
 *.log
+
+# The SuiteSparse source distribution (287 MB). It is INPUT DATA, not code:
+# workload/prep_matrices.py reads it on the head and emits the small generated
+# headers below, which are what the loop actually ships. Ray's working-dir
+# upload caps at 100 MB, so leaving this tracked makes `chia job submit` fail
+# with "413: Maximum request body size 104857600 exceeded".
+workload/SuiteSparse-7.14.1/
+
+# NOT ignored, deliberately: workload/generated/*.h (2.3 MB). loop.py reads the
+# header on the driver and passes it to build_kernel by value, so it must be
+# inside the uploaded package.
+!workload/generated/
+
+# Local backups (e.g. cluster.yaml.bak from an in-place edit)
+*.bak

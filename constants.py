@@ -21,6 +21,10 @@ GEMMINI_CFG_REL = f"{GEMMINI_REPO_REL}/chipyard"
 # The writable set. Everything else in the tree is denied by the N13 scope
 # check before git apply -- enforced programmatically, never by prompt (L-inf).
 PARAMS_FILE_REL = f"{GEMMINI_SRC_REL}/SparseCraftParams.scala"
+# Harness-owned, regenerated from the design state every iteration: the RTL
+# microarchitecture parameters PE.scala and the ZBU read. NOT agent-writable --
+# the agent changes the MECHANISM, the harness sets the knobs from the state.
+RTL_PARAMS_FILE_REL = f"{GEMMINI_SRC_REL}/SparseCraftRTL.scala"
 HARNESS_FILE_REL = f"{GEMMINI_CFG_REL}/SparseCraftConfigs.scala"
 
 # The nested software submodule. Defined here, above SUBMODULES, because
@@ -39,9 +43,62 @@ SUBMODULES = [GEMMINI_REPO_REL, GEMMINI_SW_REL]
 # which is why the software build's cache key must carry the config hash.
 GEMMINI_PARAMS_H_REL = f"{GEMMINI_REPO_REL}/software/gemmini-rocc-tests/include/gemmini_params.h"
 
+# --- The RTL the agent may write (Phase 3), and which therefore forms part of
+# --- the ELABORATION IDENTITY alongside the typed config state.
+#
+# DesignState.hw_hash() hashes only the 23 typed config fields. Editing
+# PE.scala changes the generated Verilog but NOT that hash, so a cache tag
+# built from hw_hash alone would serve the PREVIOUS build and the loop would
+# measure old hardware while attributing it to new RTL -- silently, with no
+# error. nodes.rtl_digest() closes that hole and loop.py folds it into the tag.
+RTL_FILES_REL = (
+    f"{GEMMINI_SRC_REL}/PE.scala",                    # T-A: zero-gated MAC
+    f"{GEMMINI_SRC_REL}/SparseCraftSparsity.scala",   # T-B: the ZBU (Phase 3)
+)
+
+# Files the HARNESS patches (rtl_scaffold), not the agent. These change the
+# elaborated Verilog just as surely as PE.scala does, so they must enter the
+# cache key too -- ta-gated4 -> ta-gated5 changed the counter guard in
+# ExecuteController.scala and the tag did not move, which would have served a
+# stale simulator under a new design. Separate tuple because the N13 scope
+# check must keep denying these to the agent.
+HARNESS_PATCHED_RTL_REL = (
+    f"{GEMMINI_SRC_REL}/CounterFile.scala",       # CounterExternal slot
+    f"{GEMMINI_SRC_REL}/ExecuteController.scala", # the gated-MAC accumulator
+    f"{GEMMINI_SRC_REL}/Scratchpad.scala",        # T-B: the ZBU bitmap
+)
+
 CONFIG_NAME = "SparseCraftConfig"
 CONFIG_PACKAGE = "chipyard"
 BASELINE_CONFIG_NAME = "LeanGemminiRocketConfig"
+
+# --- Parallelism tunables (see ../paR_THREADSrallelism.md) ---------------------------
+# UPDATED 2026-09-20: the host went from 32 GB to 64 GB. Memory was the binding
+# constraint for this whole project; it no longer is. 61 GB usable against 64
+# logical cores is ~1 GB/core, so cores are now the limit and these numbers are
+# sized for throughput rather than for survival.
+#
+# The history is kept deliberately: every number below was calibrated against
+# 32 GB, and several hard-won failures (an OOM at 28.99/30.43 GB during
+# elaboration; a synthesis OOM that killed a 15-iteration run at iteration 1)
+# came from that ceiling. Do not "restore" the old values on a 64 GB host.
+
+# `make -j` for Chisel elaboration + Verilator C++ compilation. NOT simulation.
+# Verilator emits large translation units and each g++ peaks at 1-1.5 GB.
+# At 32 GB the safe budget was ~16 and even that OOMed when other tenants held
+# memory. At 61 GB, 24 x 1.5 GB = 36 GB still leaves ~20 GB for the raylets,
+# the container runtime and the other user on this shared box.
+BUILD_MAKE_JOBS = int(os.environ.get("SPARSECRAFT_MAKE_JOBS", "24"))
+
+# Verilator simulation threading. This is a BUILD-time flag
+# (chipyard sims/verilator/Makefile:124 `VERILATOR_THREADS ?= 1`), passed
+# through ChiselBuildNode's extra_make_args -- so changing it REBUILDS the
+# simulator and must therefore enter the elaboration cache key.
+#
+# It was effectively 1 until 2026-09-19 (extra_make_args was empty), which made
+# every simulation single-threaded; setting it to 16 gave ~6x. The cluster.yaml
+# constraint is `concurrent sims x threads <= cores`.
+VERILATOR_THREADS = int(os.environ.get("SPARSECRAFT_VERILATOR_THREADS", "16"))
 
 # --- Ray resource names (must match cluster.yaml) ---------------------------
 R_CHIPYARD = "chipyard"
@@ -142,6 +199,8 @@ def runtime_env() -> dict:
     py_modules = sorted(
         os.path.join(here, f) for f in os.listdir(here)
         if f.endswith(".py") and not f.startswith("_"))
+    # rtl_scaffold.py is imported by apply_design_state ON THE WORKER, so it
+    # must be in py_modules like every other module the nodes import.
     return {
         "py_modules": py_modules,
         "excludes": ["**/__pycache__/**", "**/*.pyc", "runs/**", "cache/**"],

@@ -72,21 +72,49 @@ HW_LEVERS: dict[str, list] = {
 }
 
 SW_LEVERS: dict[str, list] = {
-    "block_size": [16, 32, 64, 128],
-    # tile_m / tile_n / tile_k are NOT offered. They are passed to the kernel
-    # compile as -DTILE_M etc. (nodes.py:178) and the kernel #defines them
-    # (attn_prefill.c:31-38) -- but never reads them. Only BLOCK_SIZE is
-    # actually used (:45, :51, :66). Measured: greedy changed tile_m, the
-    # kernel was rebuilt and simulated for 17 minutes, and cycles came back
-    # byte-identical to the baseline at 89,986.
+    # The SOFTWARE half of HW/SW co-design: the kernel's Gemmini instruction
+    # schedule. These change how work is ISSUED, never what is computed, so
+    # N41 equivalence still gates every one of them and no value can win by
+    # computing less.
     #
-    # Offering an inert lever to a search is worse than offering none: the arm
-    # spends a full evaluation to learn nothing, and the loop admits the result
-    # as a new design because the state hash changed. Restore these here only
-    # once the kernel actually tiles by them.
+    # Both are COUPLED to hardware levers, and T0 enforces the coupling:
+    #   k_chunk  x sp_capacity_kb  -- a deeper resident pass needs more
+    #                                 scratchpad (128KB caps k_chunk at 64;
+    #                                 256KB unlocks 128)
+    #   b_blocks x dma_maxbytes    -- a wider mvin needs a wider DMA burst
+    #                                 (64B allows up to 4 tiles, 128B up to 8)
+    # So the agent cannot raise either one alone -- it has to co-design.
+    "k_chunk":  [4, 8, 16, 32, 64],
+    "b_blocks": [0, 1, 2, 4],        # 0 = auto (as wide as gemmini allows)
 }
+# a_blocks is NOT offered: only 1 is legal against the [block][row][col] A
+# layout prep_matrices.py emits, so it would be a dead knob (T0 rejects
+# everything else). Re-add it if that layout ever changes.
+# workload / dense_mode remain withheld -- an agent that can switch workload
+# or fall back to dense mode can "win" by changing the question.
 
-ALL_LEVERS: dict[str, list] = {**HW_LEVERS, **SW_LEVERS}
+# The RTL sparsity microarchitecture, exposed as searchable parameters so the
+# non-agentic arms can reach the SAME space the agent does (plan D6). Without
+# this the comparison degrades to "a model that can edit Chisel beats searchers
+# that structurally cannot", which is true but close to tautological.
+RTL_LEVERS: dict[str, list] = {
+    "gate_enable":  [False, True],
+    "zbu_enable":   [False, True],
+}
+# DELIBERATELY NOT OFFERED, because the implemented ZBU does not honour them
+# and a lever that changes nothing is worse than no lever: it changes
+# rtl_digest without changing the netlist, so N12b returns RTL_NOOP and the
+# iteration is spent for nothing.
+#   granule_size -- the bitmap is one bit per SCRATCHPAD ROW, and a Gemmini row
+#                   is exactly DIM elements, so the granule IS 16. Sub-row
+#                   granularity would need the row split and masked; until
+#                   that exists the field stays pinned at 16.
+#   zbu_operand  -- the bitmap lives in ScratchpadBank, which holds A and B
+#                   operands in the same banks and cannot tell them apart.
+#                   The implementation is therefore inherently "BOTH".
+# Re-add either one the day the RTL actually reads it.
+
+ALL_LEVERS: dict[str, list] = {**HW_LEVERS, **SW_LEVERS, **RTL_LEVERS}
 
 # Deliberately NOT offered to any arm:
 #   has_normalizations   -- false removes the hardware softmax path, which the

@@ -38,6 +38,43 @@
 #define TILE_K 16
 #endif
 
+// --- Sparsity pattern (software lever) -------------------------------------
+// Which score blocks are computed at all. Causal masking is applied on top of
+// every pattern, so these describe the sparsity WITHIN the causal triangle --
+// i.e. they are genuine attention-sparsity techniques, not just the
+// lower-triangular structure every decoder has.
+//
+//   0 CAUSAL          every block with bj <= bi. The dense-causal reference.
+//   1 SLIDING_WINDOW  a local band of WINDOW_BLOCKS blocks (Longformer).
+//   2 WINDOW_GLOBAL   the local band, plus the first GLOBAL_BLOCKS columns
+//                     attended by every row (Longformer / BigBird global
+//                     tokens).
+//   3 STRIDED         the local band, plus every STRIDE-th block further back
+//                     (Sparse Transformer, Child et al.).
+//
+// The pattern changes which blocks are issued to Gemmini, so it moves cycles,
+// MACs and off-chip bytes -- and it couples to the hardware: WINDOW_BLOCKS x
+// BLOCK_SIZE is the token span, while BLOCK_SIZE must divide the systolic
+// array dimension. A narrow window shrinks the working set, which changes
+// which scratchpad size is the right one.
+#define P_CAUSAL         0
+#define P_SLIDING_WINDOW 1
+#define P_WINDOW_GLOBAL  2
+#define P_STRIDED        3
+
+#ifndef SPARSITY_PATTERN
+#define SPARSITY_PATTERN P_CAUSAL
+#endif
+#ifndef WINDOW_BLOCKS
+#define WINDOW_BLOCKS 4
+#endif
+#ifndef GLOBAL_BLOCKS
+#define GLOBAL_BLOCKS 1
+#endif
+#ifndef STRIDE_BLOCKS
+#define STRIDE_BLOCKS 2
+#endif
+
 // Small enough to stay a functional gate, large enough that block sparsity is
 // not semantically absent: at B=32 this is 8 blocks per row, not 2.
 #define SEQ_LEN  256
@@ -50,8 +87,27 @@ static elem_t Vmat[SEQ_LEN][D_HEAD] row_align(1);
 static elem_t Omat[SEQ_LEN][D_HEAD] row_align(1);
 static elem_t Sblk[BLOCK_SIZE][BLOCK_SIZE] row_align(1);
 
-// Causal block mask: block (i,j) is computed iff j <= i.
-static inline bool block_retained(int bi, int bj) { return bj <= bi; }
+// Block mask: is score block (bi, bj) computed at all?
+//
+// Causality first -- no pattern may attend the future. Then the pattern
+// decides which of the permitted blocks are actually retained. The diagonal
+// block is always kept: a row that attends nothing produces a degenerate
+// softmax, and a kernel that can produce one is not measuring attention.
+static inline bool block_retained(int bi, int bj) {
+  if (bj > bi) return false;
+  const int back = bi - bj;               // how far into the past
+  if (back == 0) return true;             // always attend self
+
+#if   SPARSITY_PATTERN == P_SLIDING_WINDOW
+  return back < WINDOW_BLOCKS;
+#elif SPARSITY_PATTERN == P_WINDOW_GLOBAL
+  return back < WINDOW_BLOCKS || bj < GLOBAL_BLOCKS;
+#elif SPARSITY_PATTERN == P_STRIDED
+  return back < WINDOW_BLOCKS || (back % STRIDE_BLOCKS) == 0;
+#else
+  return true;                            // P_CAUSAL
+#endif
+}
 
 static void fill(void) {
   // Deliberately non-degenerate: no exact zeros, so a kernel that
@@ -147,6 +203,12 @@ int main(void) {
   printf("SPARSECRAFT cycles=%lu\n", (unsigned long)(t1 - t0));
   printf("SPARSECRAFT macs_useful=%lu\n", (unsigned long)macs);
   printf("SPARSECRAFT nnz_blocks=%lu\n", (unsigned long)nnz_blocks);
+  // Echo the pattern back so the record shows what was actually compiled in,
+  // not merely what the design state asked for.
+  printf("SPARSECRAFT sparsity_pattern=%d\n", SPARSITY_PATTERN);
+  printf("SPARSECRAFT window_blocks=%d\n", WINDOW_BLOCKS);
+  printf("SPARSECRAFT global_blocks=%d\n", GLOBAL_BLOCKS);
+  printf("SPARSECRAFT stride_blocks=%d\n", STRIDE_BLOCKS);
   printf("SPARSECRAFT seq_len=%d\n", SEQ_LEN);
   printf("SPARSECRAFT block_size=%d\n", BLOCK_SIZE);
   printf("SPARSECRAFT d_head=%d\n", D_HEAD);

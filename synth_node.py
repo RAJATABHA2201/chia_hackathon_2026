@@ -263,7 +263,80 @@ def resolve_top_module(sources: dict[str, str], hint: str = "Gemmini") -> tuple[
 # ---------------------------------------------------------------------------
 # The node
 # ---------------------------------------------------------------------------
+def _yosys_sanitize(src: str) -> str:
+    """Rewrite the one SystemVerilog construct yosys 0.38 cannot parse.
+
+    firtool emits packed-array assignment patterns:
+
+        wire [3:0][3:0] _GEN_4 = '{4'hC, 4'h8, 4'hE, 4'h6};
+
+    and yosys 0.38 rejects the `'{` with "syntax error, unexpected OP_CAST"
+    (measured: TLAtomicAutomata_pbus.sv:258, which killed the whole T3 tier --
+    no yosys log, no Gemmini.mapped.v, and hammer reported only the missing
+    output file). The recipe notes in docker/yosys_gemmini_recipe.md describe
+    this rewrite, but it was never actually in the staging path.
+
+    For a PACKED array the pattern is positionally identical to a
+    concatenation -- `[3:0][3:0]` is 16 contiguous bits and the four 4-bit
+    values appear in the same order -- so `= '{...}` -> `= {...}` preserves
+    semantics exactly. It is applied ONLY to the staged synthesis copy; the
+    simulated RTL is untouched, so this cannot affect any measured cycle
+    count, only the netlist handed to yosys.
+    """
+    # Whitespace-aware: firtool also emits the pattern with the `'{` on the
+    # line AFTER the `=`, e.g. TLROM.sv:22
+    #     wire [511:0][63:0] _GEN =
+    #         '{64'h0,
+    # A literal "= '{" match misses that one and yosys dies 478 files later.
+    import re as _re
+    return _re.sub(r"=(\s*)'\{", r"=\1{", src)
+
+
+def _resolve_synthesis_ifdefs(src: str) -> str:
+    """Select the `SYNTHESIS branch, as defining SYNTHESIS would.
+
+    Chipyard guards simulation-only bodies with `ifdef SYNTHESIS. hammer's
+    yosys flow passes no +define+SYNTHESIS, so yosys would take the SIMULATION
+    branch -- $value$plusargs and friends -- in modules that must synthesise.
+    plusarg_reader is the load-bearing case: its SYNTHESIS branch is a plain
+    `assign out = DEFAULT`.
+
+    Only SYNTHESIS conditionals are resolved. Every other `ifdef is copied
+    through untouched, and tracked only so a nested `else/`endif is attributed
+    to the right directive.
+    """
+    out: list[str] = []
+    stack: list[tuple] = []          # ("synth", emitting) | ("other", None)
+    for line in src.splitlines(keepends=True):
+        st = line.strip()
+        if st.startswith("`ifdef SYNTHESIS") or st.startswith("`ifndef SYNTHESIS"):
+            stack.append(("synth", st.startswith("`ifdef")))
+            continue
+        if st.startswith("`ifdef") or st.startswith("`ifndef"):
+            stack.append(("other", None))
+            out.append(line)
+            continue
+        if st.startswith("`else") and stack and stack[-1][0] == "synth":
+            stack[-1] = ("synth", not stack[-1][1])
+            continue
+        if st.startswith("`endif") and stack and stack[-1][0] == "synth":
+            stack.pop()
+            continue
+        if st.startswith("`endif"):
+            if stack and stack[-1][0] == "other":
+                stack.pop()
+            out.append(line)
+            continue
+        if st.startswith("`else"):
+            out.append(line)
+            continue
+        if all(kind != "synth" or emit for kind, emit in stack):
+            out.append(line)
+    return "".join(out)
+
+
 @ChiaFunction(resources={R_HAMMER: 1})
+
 def synthesize(
     generated_src_files: list[tuple[str, str]],
     top_module: str = SYNTH_TOP_MODULE,
@@ -303,12 +376,33 @@ def synthesize(
         # TestDriver and the Verilator-only harness are simulation collateral;
         # they instantiate $fatal/$fdisplay and are not synthesizable.
         base = os.path.basename(filename)
-        if base in ("TestDriver.v", "TestDriver.sv") or "plusarg" in base.lower():
+        if base in ("TestDriver.v", "TestDriver.sv"):
+            continue
+        # plusarg_reader is NOT dropped any more. It is instantiated by the
+        # TLMonitor assertion modules, so excluding it made `hierarchy -check
+        # -top Gemmini` fail with "Module \\plusarg_reader ... is not part of
+        # the design" after every file had already parsed. Its `ifdef
+        # SYNTHESIS branch is a plain `assign out = DEFAULT`, which
+        # _resolve_synthesis_ifdefs selects below.
+        if base.lower().startswith("plusargtimeout"):
+            continue
+        # Behavioural harness models. Not synthesisable, and irrelevant anyway
+        # because the top module is Gemmini, not TestHarness -- but yosys
+        # parses every staged file before elaborating the top, so one
+        # unparseable model kills the whole T3 tier.
+        #
+        # ClockSourceAtFreqMHz.v declares `timeunit 1ns/1ps;` INSIDE the module
+        # (yosys 0.38: "syntax error, unexpected TOK_TIME_SCALE") and drives
+        # its output with `always #(PERIOD/2.0)`. Note the GenericDigital*IOCell
+        # models are NOT excluded: their `timescale is file-scope, which yosys
+        # accepts, and EICG_wrapper is a real clock-gating latch.
+        if base in ("ClockSourceAtFreqMHz.v", "SimDRAM.v", "SimJTAG.v",
+                    "SimUART.v", "SimSerial.v"):
             continue
         path = os.path.join(src_dir, base)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w") as f:
-            f.write(contents)
+            f.write(_resolve_synthesis_ifdefs(_yosys_sanitize(contents)))
         staged.append(path)
     if not staged:
         return SynthResult(success=False, top_module=top_module,
