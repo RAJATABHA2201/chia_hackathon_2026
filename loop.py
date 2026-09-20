@@ -795,6 +795,28 @@ def main() -> int:
                     continue
                 seen.add(ident)
 
+                # ---- make the HARDWARE match the state we just parsed ------------
+                # The agent sets gate_enable / zbu_enable by editing the
+                # `// SPARSECRAFT` markers, and read_design_state parses the state
+                # back out of them -- but Chisel elaborates against
+                # SparseCraftRTL.scala, which only apply_design_state writes, and
+                # that is never called in the agent path. So the toggle reached the
+                # state, the hash and the records, and never reached the hardware:
+                # codesign15c iterations 5 and 6 proposed zbu_enable and
+                # gate_enable and both elaborated to the BASELINE netlist
+                # (6f3c5995546620a3), caught by N12b as RTL_NOOP.
+                #
+                # Done BEFORE the compile gate so N12 checks the real
+                # configuration, and before rtl_digest is consumed -- this file is
+                # in neither RTL_FILES_REL nor HARNESS_PATCHED_RTL_REL, so
+                # rewriting it does not perturb that digest. hw_hash already covers
+                # the toggles, so the elaboration cache key stays correct.
+                _rp = get(nodes.apply_rtl_params.options(**pg_opts)
+                          .chia_remote(json.dumps(child.canonical())))
+                if _rp.get("changed"):
+                    print(f"  N13 RTL params regenerated: gate={_rp.get('gate_enable')} "
+                          f"zbu={_rp.get('zbu_enable')}")
+
                 # ---- N12 RTL compile gate ---------------------------------------
                 # 17-19 s against a ~5 min iteration. Catches the Chisel type
                 # errors an LLM writing RTL will produce, before anything

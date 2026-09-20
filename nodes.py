@@ -49,6 +49,53 @@ class ApplyResult:
 
 
 # --------------------------------------------------------------------------
+# Re-render ONLY SparseCraftRTL.scala from a state, without touching anything
+# the agent wrote.
+#
+# Why this exists. The agent sets the RTL toggles by editing
+# `// SPARSECRAFT gate_enable = 1` markers in SparseCraftParams.scala, and
+# read_design_state parses the state back out of THAT file. But the value Chisel
+# actually elaborates against lives in SparseCraftRTL.scala, which is written
+# only by apply_design_state -- and apply_design_state is not called anywhere in
+# the agent path before elaboration. So the agent's toggle reached the design
+# state, the hash and the records, and never reached the hardware.
+#
+# Measured, run codesign15c 2026-09-20: iteration 5 proposed zbu_enable, and
+# iteration 6 gate_enable; both elaborated to netlist 6f3c5995546620a3 -- the
+# BASELINE's, byte for byte -- and were caught by N12b as RTL_NOOP. Neither
+# technique was reachable by the agent at all; the §9i T-A A/B only worked
+# because `--gate` sets the baseline and goes through apply_design_state.
+#
+# The silent case is the reason this is a correctness fix and not a convenience
+# one: SparseCraftParams.scala is in neither RTL_FILES_REL nor
+# HARNESS_PATCHED_RTL_REL, so a marker-only flip does NOT move rtl_digest and
+# N12b's `rtl_changed` stays false. Flip a toggle AND a config field in one
+# turn and the netlist moves because of the config field, N12b says nothing,
+# and the loop scores "gate_enable=True" against hardware with gating off.
+#
+# Writes one harness-owned file and nothing else, so the agent's PE.scala and
+# SparseCraftSparsity.scala edits are untouched.
+# --------------------------------------------------------------------------
+@ChiaFunction(resources={R_CHIPYARD: BUILD_FRACTION})
+def apply_rtl_params(state_json: str, chipyard_path: str = CHIPYARD_PATH) -> dict:
+    """Regenerate SparseCraftRTL.scala so the elaborated knobs match the state."""
+    import json
+    state = DesignState.from_dict(json.loads(state_json))
+    path = os.path.join(chipyard_path, RTL_PARAMS_FILE_REL)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    before = ""
+    if os.path.isfile(path):
+        with open(path) as f:
+            before = f.read()
+    after = state.to_rtl_scala()
+    if after != before:
+        with open(path, "w") as f:
+            f.write(after)
+    return {"changed": after != before, "path": RTL_PARAMS_FILE_REL,
+            "gate_enable": state.gate_enable, "zbu_enable": state.zbu_enable}
+
+
+# --------------------------------------------------------------------------
 # N13 -- write the design state into the Chipyard tree.
 #
 # The scope check runs on the HEAD before this is ever dispatched
