@@ -290,6 +290,11 @@ def main() -> int:
                          "result -- this sets the design point, it does not "
                          "excuse an illegal one. For sweeping the hardware "
                          "levers without an agent.")
+    ap.add_argument("--x-resident", action="store_true",
+                    help="hold ALL of X in the scratchpad for the whole matmul "
+                         "instead of re-mvin'ing its slices once per nonzero "
+                         "block. SOFTWARE lever, coupled to sp_capacity_kb: X is "
+                         "2,048 scratchpad rows of 16,384 at 256 KB.")
     ap.add_argument("--gate", action="store_true",
                     help="enable T-A zero-gated MAC (SparseCraftRTL.gateEnable). "
                          "Changes hw_hash, so it forces a fresh elaboration.")
@@ -394,6 +399,7 @@ def main() -> int:
             **({"dense_mode": True} if args.dense else {}),
             **({"gate_enable": True} if args.gate else {}),
             **({"zbu_enable": True} if args.zbu else {}),
+            **({"x_resident": True} if args.x_resident else {}),
             **({"k_chunk": args.k_chunk} if args.k_chunk is not None else {}),
             **({"b_blocks": args.b_blocks} if args.b_blocks is not None else {}),
             **({"sp_capacity_kb": args.spad_kb} if args.spad_kb is not None else {}),

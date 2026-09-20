@@ -133,14 +133,7 @@ def apply_counters(cf_src: str, ec_src: str) -> tuple[str, str, bool]:
     cf = cf_src.replace(old_n,
         "  val WDMA_TOTAL_LATENCY = 7\n\n"
         "  // SPARSECRAFT: zero-operand multiplies, counted at the mesh input.\n"
-        "  val MAC_GATED_TOTAL = 8\n"
-        "  // SPARSECRAFT: scratchpad row reads the ZBU suppressed because the row\n"
-        "  // was known to be all-zero. Counted in Scratchpad.scala, where the skip\n"
-        "  // pulse is generated. Without it T-B is unmeasurable: the energy model\n"
-        "  // derives its SRAM term from macs_issued, which a suppressed read does\n"
-        "  // not change, so the ZBU scored as pure area cost no matter how well it\n"
-        "  // worked.\n"
-        "  val ZBU_SKIPPED_ROWS = 9\n\n  val n = 10", 1)
+        "  val MAC_GATED_TOTAL = 8\n\n  val n = 9", 1)
 
     # --- ExecuteController: accumulate and publish ------------------------
     anchor_ec = "  CounterEventIO.init(io.counter)\n"
@@ -198,13 +191,7 @@ def apply_counter_header(hdr_src: str) -> tuple[str, bool]:
         anchor_h,
         anchor_h + "\n\n// SPARSECRAFT: zero-operand multiplies, counted at the mesh\n"
                    "// input (ExecuteController). Must match CounterExternal.MAC_GATED_TOTAL.\n"
-                   "#define MAC_GATED_TOTAL (INCREMENTAL_COUNTERS + 8)\n\n"
-                   "// SPARSECRAFT: scratchpad row reads suppressed by the ZBU. Counted in\n"
-                   "// Scratchpad.scala. Must match CounterExternal.ZBU_SKIPPED_ROWS.\n"
-                   "// The Scala and C sides are maintained separately, so both are patched\n"
-                   "// here in one change -- a mismatch only surfaces as a kernel compile\n"
-                   "// error AFTER an elaboration has been paid for.\n"
-                   "#define ZBU_SKIPPED_ROWS (INCREMENTAL_COUNTERS + 9)", 1), True
+                   "#define MAC_GATED_TOTAL (INCREMENTAL_COUNTERS + 8)", 1), True
 
 
 def main() -> int:
@@ -422,48 +409,4 @@ def apply_tb(sp_src: str):
                              Mux(RegNext(sc_skip), 0.U, rdata) else rdata)"""
     out = out.replace(old, new, 1)
 
-    # --- 4. publish the skip count so the energy model can SEE T-B ---------
-    # The whole reason the ZBU could never win: e_sram is derived from
-    # macs_issued, which a suppressed read does not change, so T-B measured as
-    # pure area cost. This counts the suppressed reads where they happen.
-    #
-    # Scratchpad already owns a CounterEventIO and collects into it, and
-    # `spad_mems` is the Seq of banks in the same scope, so the per-bank
-    # `sc_zbu_skip` pulses aggregate here -- no threading up through
-    # ExecuteController, which is what apply_counters went out of its way to
-    # avoid for MAC_GATED_TOTAL.
-    #
-    # ENTIRELY inside a Scala `if`: with zbuEnable false no register, no port
-    # and no counter connection is emitted, so the disabled netlist stays
-    # byte-identical to stock (the Sec 9h trap).
-    anchor_cnt = ("    io.counter := DontCare\n"
-                  "    io.counter.collect(reader.module.io.counter)\n"
-                  "    io.counter.collect(writer.module.io.counter)")
-    if anchor_cnt not in out:
-        raise RuntimeError("Scratchpad.scala: counter connection block not found")
-    out = out.replace(anchor_cnt, anchor_cnt + f"""
-
-    {ZBU_SENTINEL} counter -- suppressed scratchpad row reads.
-    //
-    // The CONNECTION is unconditional; only the REGISTER is conditional.
-    // CounterFile drives external_values over all CounterExternal.n slots
-    // (`for (i <- 0 until CounterExternal.n)`), so a slot that is never
-    // connected leaves an uninitialised reference and Chisel fails at
-    // ELABORATION -- after scalac has happily passed, which is how the first
-    // version of this got through the N12 gate and died at N30 with rc=2.
-    // MAC_GATED_TOTAL connects outside any conditional for the same reason.
-    //
-    // With zbuEnable false this ties the slot to a constant 0: no register, no
-    // PopCount, no read of sc_zbu_skip (which is None in that case, so `.get`
-    // would throw).
-    val sc_zbu_skipped = if (SparseCraftRTL.zbuEnable) {{
-      // One pulse per bank per cycle whose read was suppressed. PopCount over
-      // the banks is the number of row reads avoided this cycle. Free-running;
-      // CounterFile rebases external counters itself.
-      val sc_zbu_ctr = RegInit(0.U(32.W))
-      sc_zbu_ctr := sc_zbu_ctr + PopCount(spad_mems.map(_.io.sc_zbu_skip.get))
-      sc_zbu_ctr
-    }} else 0.U(32.W)
-    io.counter.connectExternalCounter(
-      CounterExternal.ZBU_SKIPPED_ROWS, sc_zbu_skipped)""", 1)
     return out, True

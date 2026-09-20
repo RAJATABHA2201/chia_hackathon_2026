@@ -74,7 +74,7 @@ static int32_t blk_idx[SPMM_MB][SPMM_KB];
 // which a suppressed read does not change, so the ZBU scores as pure area cost.
 enum {
   C_EXE_ACTIVE = 0, C_LOAD_DMA_WAIT, C_SPAD_A_WAIT, C_SPAD_B_WAIT,
-  C_ZBU_SKIPPED, C_MAC_GATED, C_RDMA_BYTES, C_WDMA_BYTES
+  C_RS_FULL, C_MAC_GATED, C_RDMA_BYTES, C_WDMA_BYTES
 };
 
 // ACCUMULATOR-RESIDENT PATH (default). See plan Sec 9j.
@@ -130,6 +130,31 @@ enum {
 #define SPMM_A_BLOCKS 1
 #endif
 
+// X-RESIDENT SCRATCHPAD (SPMM_XRES=1).
+//
+// Measured on jag512: RDMA_BYTES_REC = 539,136 B against 62,720 B of ideal
+// reads -- 8.6x. A is read once and optimal; Y leaves once and is optimal. The
+// entire excess is X, whose row-slices are mvin'd INSIDE the per-block loop,
+// once per nonzero block (117 times) when there are only 32 DISTINCT slices.
+//
+// All of X is 32 x (J*DIM) = 2,048 scratchpad rows out of 16,384 at 256 KB --
+// 12.5%. So it can simply stay there for the whole matmul and be addressed by
+// block column, which is the hardware capacity and the software schedule being
+// co-designed rather than each assuming the other.
+//
+// A moves above the resident X region; the per-pass B window disappears.
+#ifndef SPMM_XRES
+#define SPMM_XRES 0
+#endif
+
+#define X_SLICE_ROWS ((SPMM_N / DIM_) * DIM)     // rows per block-column slice
+#if SPMM_XRES
+#define X_SP_BASE    0u
+#define A_SP_BASE    ((uint32_t)(SPMM_KB * X_SLICE_ROWS))
+#else
+#define A_SP_BASE    0u
+#endif
+
 // The per-row plan, built BEFORE the timer (same discipline as blk_idx: no CPU
 // search inside the measured window).
 static const elem_t *row_A[SPMM_MB][SPMM_KB];
@@ -175,8 +200,10 @@ static void row_mac(int bi, const elem_t *const *Ablk,
     size_t K = (size_t)(nb - done);
     if (K > SPMM_KCHUNK) K = SPMM_KCHUNK;
 
-    const uint32_t A_sp = 0;
+    const uint32_t A_sp = A_SP_BASE;
+#if !SPMM_XRES
     const uint32_t B_sp = BANK_NUM * BANK_ROWS - K * J * DIM;
+#endif
 
     // B: the X row slices. Stride is SPMM_N -- the slice is 16 contiguous rows
     // of the dense X, read in place at its true address.
@@ -187,6 +214,7 @@ static void row_mac(int bi, const elem_t *const *Ablk,
     // row reads each cost a full granule and waste 4x. Measured reads were
     // 6.5x the analytic model; this is the one contributor that was clearly
     // self-inflicted.
+#if !SPMM_XRES
     gemmini_extended_config_ld(SPMM_N * sizeof(elem_t), MVIN_SCALE_IDENTITY);
     for (size_t k = 0; k < K; k++) {
       const elem_t *Xr = &spmm_X[bcol[done + k] * DIM_][0];
@@ -196,6 +224,7 @@ static void row_mac(int bi, const elem_t *const *Ablk,
                               blocks * DIM, DIM);
       }
     }
+#endif
 
     // A: each block is a dense DIM x DIM tile, stride DIM_.
     gemmini_extended_config_ld(DIM_ * sizeof(elem_t), MVIN_SCALE_IDENTITY);
@@ -216,8 +245,13 @@ static void row_mac(int bi, const elem_t *const *Ablk,
         uint32_t out = C_sp + j * DIM;
         if (k == 0 && chunk == 0)
           out &= ~(1u << (ADDR_LEN - 2));      // first contribution overwrites
-        gemmini_extended_preload(B_sp + (k * J + j) * DIM, out,
-                                 DIM, DIM, DIM, DIM);
+#if SPMM_XRES
+        const uint32_t b_addr = X_SP_BASE
+            + (uint32_t)bcol[done + k] * X_SLICE_ROWS + (uint32_t)(j * DIM);
+#else
+        const uint32_t b_addr = B_sp + (k * J + j) * DIM;
+#endif
+        gemmini_extended_preload(b_addr, out, DIM, DIM, DIM, DIM);
         gemmini_extended_compute_preloaded(A_sp + k * DIM, GARBAGE_ADDR,
                                            DIM, DIM, DIM, DIM);
       }
@@ -281,13 +315,33 @@ int main(void) {
   counter_configure(C_LOAD_DMA_WAIT, LOAD_DMA_WAIT_CYCLE);
   counter_configure(C_SPAD_A_WAIT,   SCRATCHPAD_A_WAIT_CYCLE);
   counter_configure(C_SPAD_B_WAIT,   SCRATCHPAD_B_WAIT_CYCLE);
-  counter_configure(C_ZBU_SKIPPED,   ZBU_SKIPPED_ROWS);
+  counter_configure(C_RS_FULL,       RESERVATION_STATION_FULL_CYCLES);
   counter_configure(C_MAC_GATED,     MAC_GATED_TOTAL);
   counter_configure(C_RDMA_BYTES,    RDMA_BYTES_REC);
   counter_configure(C_WDMA_BYTES,    WDMA_BYTES_SENT);
 
   uint64_t tiles = 0;
   uint64_t t0 = read_cycles();
+
+#if SPMM_XRES
+  // Load every X block-column slice ONCE, inside the timed region so the cost
+  // is charged honestly, and leave them resident for the whole matmul.
+  {
+    const size_t J = SPMM_N / DIM_;
+    gemmini_extended_config_ld(SPMM_N * sizeof(elem_t), MVIN_SCALE_IDENTITY);
+    for (int bj = 0; bj < SPMM_KB; bj++) {
+      const elem_t *Xr = &spmm_X[bj * DIM_][0];
+      for (size_t j = 0; j < J; j += B_BLOCKS) {
+        const size_t blocks = (j + B_BLOCKS <= J) ? (size_t)B_BLOCKS : J - j;
+        gemmini_extended_mvin(Xr + j * DIM_,
+                              X_SP_BASE + (uint32_t)bj * X_SLICE_ROWS
+                                        + (uint32_t)(j * DIM),
+                              blocks * DIM, DIM);
+      }
+    }
+    gemmini_fence();
+  }
+#endif
 
 #if SPMM_ACCRES
   // One pass per block row. Identical control flow in both modes -- the ONLY
@@ -361,7 +415,7 @@ int main(void) {
   printf("SPARSECRAFT LOAD_DMA_WAIT_CYCLE=%u\n", counter_read(C_LOAD_DMA_WAIT));
   printf("SPARSECRAFT SCRATCHPAD_A_WAIT_CYCLE=%u\n", counter_read(C_SPAD_A_WAIT));
   printf("SPARSECRAFT SCRATCHPAD_B_WAIT_CYCLE=%u\n", counter_read(C_SPAD_B_WAIT));
-  printf("SPARSECRAFT ZBU_SKIPPED_ROWS=%u\n", counter_read(C_ZBU_SKIPPED));
+  printf("SPARSECRAFT RESERVATION_STATION_FULL_CYCLES=%u\n", counter_read(C_RS_FULL));
   printf("SPARSECRAFT MAC_GATED_TOTAL=%u\n", counter_read(C_MAC_GATED));
   printf("SPARSECRAFT RDMA_BYTES_REC=%u\n", counter_read(C_RDMA_BYTES));
   printf("SPARSECRAFT WDMA_BYTES_SENT=%u\n", counter_read(C_WDMA_BYTES));

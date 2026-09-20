@@ -508,6 +508,7 @@ def build_kernel(state_json: str, kernel_source: str, data_header: str,
         # without changing the source, and loop.py folds them into build_id
         # for exactly that reason.
         f"-DSPMM_KCHUNK={int(state.k_chunk)}",
+        f"-DSPMM_XRES={int(state.x_resident)}",
         f"-DSPMM_B_BLOCKS={int(state.b_blocks)}",
         f"-DSPMM_A_BLOCKS={int(state.a_blocks)}",
         src, "-o", out,
@@ -624,7 +625,7 @@ def parse_params_scala(text: str) -> dict:
         mm = re.search(rf"//\s*SPARSECRAFT\s+{name}\s*=\s*(\d+)", text)
         if mm:
             out[name] = int(mm.group(1))
-    for name in ("gate_enable", "zbu_enable", "dense_mode"):
+    for name in ("gate_enable", "zbu_enable", "dense_mode", "x_resident"):
         mm = re.search(rf"//\s*SPARSECRAFT\s+{name}\s*=\s*([01])", text)
         if mm:
             out[name] = bool(int(mm.group(1)))

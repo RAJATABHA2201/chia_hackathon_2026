@@ -110,6 +110,12 @@ class DesignState:
     # so a bigger chunk needs a bigger scratchpad. T0 rejects the combinations
     # that do not fit. That coupling is the co-design.
     k_chunk: int = 16               # K-blocks accumulated per resident pass
+    # X-RESIDENT SCRATCHPAD. Couples to sp_capacity_kb exactly as k_chunk does:
+    # all of X is SPMM_KB*(N/DIM)*DIM scratchpad rows (2,048 of 16,384 at
+    # 256 KB), so it only fits if the hardware provides the capacity. Measured
+    # motivation: X was being re-fetched from DRAM once per nonzero block, 117
+    # times, for 8.6x the ideal read traffic.
+    x_resident: bool = False
     b_blocks: int = 0               # B mvin width in DIM-column tiles; 0 = auto
     a_blocks: int = 1               # A mvin width in DIM-column tiles
 
@@ -129,7 +135,8 @@ class DesignState:
         # belong to the elaboration cache key, not the software one.
         "gate_enable", "zbu_enable", "granule_size", "zbu_operand",
     )
-    SW_FIELDS = ("workload", "dense_mode", "k_chunk", "b_blocks", "a_blocks")
+    SW_FIELDS = ("workload", "dense_mode", "k_chunk", "b_blocks", "a_blocks",
+                 "x_resident")
 
     # --------------------------------------------------------------- derived -
     @property
@@ -213,6 +220,7 @@ class DesignState:
 // and the CLI alike.
 // SPARSECRAFT k_chunk = {self.k_chunk}
 // SPARSECRAFT b_blocks = {self.b_blocks}
+// SPARSECRAFT x_resident = {int(self.x_resident)}
 // The four below are RTL-microarchitecture parameters. They are markers, NOT
 // GemminiArrayConfig fields, until Phase 3 adds the corresponding Chisel
 // parameters -- emitting them as `.copy(gate_enable = ...)` before the field
