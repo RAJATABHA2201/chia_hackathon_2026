@@ -35,7 +35,27 @@ MEM_LATENCY_CYCLES = 100
 # Concurrent gather streams the scratchpad must serve: A, B and D operands.
 CONCURRENT_GATHER_STREAMS = 3
 
-AREA_BUDGET_UM2 = 4.0e6
+# Area ceiling, in um2 of synthesised logic + SRAM macros.
+#
+# Was 4.0e6, which is BELOW the measured baseline of 4.035e6 -- so every
+# evaluated design was rejected INFEASIBLE before its objectives were compared,
+# and the only point that could ever be admitted was the baseline, which
+# loop.py force-admits without calling admit() at all. Run agentic15 lost
+# iteration 3 to this: a legal RTL edit that passed T0, the compile gate,
+# elaboration, simulation and N41 was thrown away on area alone.
+#
+# The number was not wrong when it was written -- it was set against the T1
+# model's ~1.8e6 prediction, and against a synthesis recipe that reported
+# 24.5e6 because the SRAM macros were being built out of flip-flops. Fixing the
+# recipe moved the MEASURED area to 4.035e6 and left this constant stranded
+# just below it. A budget expressed as an absolute number has to be revisited
+# whenever the measurement that feeds it changes.
+#
+# 5.0e6 is ~24% over the measured baseline: enough for the sparsity techniques
+# that trade area for energy (T-A costs +0.7%, the ZBU +4.4%), while still
+# rejecting a design that simply doubles the array (~8e6) and buys its speedup
+# with silicon.
+AREA_BUDGET_UM2 = 5.0e6
 
 
 @dataclass

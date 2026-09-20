@@ -1208,9 +1208,15 @@ def main() -> int:
                     archive.offer(point, 0.0)
                     v, info = Verdict.ADMIT_FRONT, {"reward": 0.0, "baseline": True}
                 else:
+                    # Pass the budget explicitly. pareto.admit carries its own
+                    # 4.0e6 default, so leaving it out meant T0 and N60 could
+                    # disagree about the ceiling -- and they did: raising T0's
+                    # constant alone would have left N60 still rejecting every
+                    # design. One source of truth.
                     v, info = admit(point, front, archive, base_point,
                                     parent_reward=parent_reward, iteration=it,
-                                    budget=args.iters)
+                                    budget=args.iters,
+                                    area_budget=t0.AREA_BUDGET_UM2)
                 record["verdict"] = v.value
                 record["admit_info"] = info
                 print(f"  N60 {v.value}  front={len(front.points)}  "
