@@ -127,6 +127,25 @@ def check(s: DesignState, *, predicted_area_um2: float | None = None,
     block_rows = s.meshRows * s.tileRows
     block_cols = s.meshColumns * s.tileColumns
 
+    # --- Family 0b: i_group is bounded by the ACCUMULATOR -----------------
+    # The group's output tiles must all stay resident. One output block row is
+    # (N/DIM)*DIM accumulator rows of DIM*ACC_BYTES, so:
+    #     i_group <= acc_capacity_kb*1024 / (DIM * N * ACC_BYTES)
+    # Exceed it and Y round-trips to DRAM, which destroys the
+    # accumulator-resident property the whole kernel is built on -- and it
+    # would do so SILENTLY, as a traffic regression rather than an error. Same
+    # shape of coupling as k_chunk/sp_capacity and x_resident/sp_capacity: a
+    # software schedule legal only because the hardware provides the capacity.
+    if getattr(s, "i_group", 1) > 1:
+        _acc_rows = (s.acc_capacity_kb * 1024) // (block_rows * ACC_BYTES)
+        _rows_per_out = (SPMM_N // block_rows) * block_rows
+        _imax = _acc_rows // _rows_per_out if _rows_per_out else 0
+        if s.i_group > _imax:
+            v.append(f"sched.i_group_acc: i_group {s.i_group} exceeds {_imax}, the "
+                     f"block rows acc_capacity {s.acc_capacity_kb} KB can hold "
+                     f"resident ({_acc_rows} acc rows / {_rows_per_out} per output "
+                     f"row). The group's tiles would spill to DRAM.")
+
     # --- Family 0: the benchmark is not a design variable -----------------
     # `workload` and `dense_mode` live in SW_FIELDS and are emitted as
     # `// SPARSECRAFT` markers in SparseCraftParams.scala -- which IS the

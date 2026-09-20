@@ -509,6 +509,8 @@ def build_kernel(state_json: str, kernel_source: str, data_header: str,
         # for exactly that reason.
         f"-DSPMM_KCHUNK={int(state.k_chunk)}",
         f"-DSPMM_XRES={int(state.x_resident)}",
+        f"-DSPMM_IGROUP={int(state.i_group)}",
+        f"-DSPMM_ACC_KB={int(state.acc_capacity_kb)}",
         f"-DSPMM_B_BLOCKS={int(state.b_blocks)}",
         f"-DSPMM_A_BLOCKS={int(state.a_blocks)}",
         src, "-o", out,
@@ -621,7 +623,7 @@ def parse_params_scala(text: str) -> dict:
     # and b_blocks here the state re-read from the tree silently fell back to
     # the dataclass defaults, so no schedule proposal could ever survive one
     # iteration -- the software half of "co-design" was unreachable.
-    for name in ("granule_size", "k_chunk", "b_blocks"):
+    for name in ("granule_size", "k_chunk", "b_blocks", "i_group"):
         mm = re.search(rf"//\s*SPARSECRAFT\s+{name}\s*=\s*(\d+)", text)
         if mm:
             out[name] = int(mm.group(1))
