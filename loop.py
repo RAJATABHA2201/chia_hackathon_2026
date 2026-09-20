@@ -56,6 +56,7 @@ import proposers                                                        # noqa: 
 import synth_node
 import synth_recipe                                                       # noqa: E402
 import t0_legality as t0                                                # noqa: E402
+from dataclasses import fields as dc_fields                  # noqa: E402
 from design_state import BASELINE, DesignState                          # noqa: E402
 from metrics import parse as parse_metrics, tripwire_ok                 # noqa: E402
 from pareto import (Archive, ParetoFront, Point, Verdict, admit,        # noqa: E402
@@ -282,6 +283,13 @@ def main() -> int:
                     help="scratchpad capacity in KB -- the HARDWARE half of the "
                          "k_chunk coupling. Changes hw_hash, so it forces a fresh "
                          "elaboration and synthesis.")
+    ap.add_argument("--set", action="append", default=[], metavar="FIELD=VALUE",
+                    help="override any DesignState field, repeatable: "
+                         "--set sp_banks=8 --set dma_maxbytes=128. Types are "
+                         "coerced from the dataclass, and T0 still judges the "
+                         "result -- this sets the design point, it does not "
+                         "excuse an illegal one. For sweeping the hardware "
+                         "levers without an agent.")
     ap.add_argument("--gate", action="store_true",
                     help="enable T-A zero-gated MAC (SparseCraftRTL.gateEnable). "
                          "Changes hw_hash, so it forces a fresh elaboration.")
@@ -355,7 +363,30 @@ def main() -> int:
     # Apply the CLI overrides to the baseline BEFORE anything is written or
     # hashed, so the cache key and the trace both describe what actually ran.
     global BASELINE
-    if (args.workload or args.dense or args.gate or args.zbu
+    # --set FIELD=VALUE, coerced against the dataclass so a typo or a bad type
+    # fails here rather than surfacing as a mystery three stages later.
+    _overrides = {}
+    if args.set:
+        _types = {f.name: f.type for f in dc_fields(BASELINE)}
+        for item in args.set:
+            if "=" not in item:
+                raise SystemExit(f"--set expects FIELD=VALUE, got {item!r}")
+            k, v = item.split("=", 1)
+            k, v = k.strip(), v.strip()
+            if k not in _types:
+                raise SystemExit(f"--set: unknown field {k!r}. Known: "
+                                 f"{', '.join(sorted(_types))}")
+            cur = getattr(BASELINE, k)
+            if isinstance(cur, bool):
+                _overrides[k] = v.lower() in ("1", "true", "yes", "on")
+            elif isinstance(cur, int):
+                _overrides[k] = int(v)
+            elif isinstance(cur, float):
+                _overrides[k] = float(v)
+            else:
+                _overrides[k] = v
+
+    if (args.workload or args.dense or args.gate or args.zbu or _overrides
             or args.k_chunk is not None or args.b_blocks is not None
             or args.spad_kb is not None):
         BASELINE = BASELINE.mutate(
@@ -365,7 +396,8 @@ def main() -> int:
             **({"zbu_enable": True} if args.zbu else {}),
             **({"k_chunk": args.k_chunk} if args.k_chunk is not None else {}),
             **({"b_blocks": args.b_blocks} if args.b_blocks is not None else {}),
-            **({"sp_capacity_kb": args.spad_kb} if args.spad_kb is not None else {}))
+            **({"sp_capacity_kb": args.spad_kb} if args.spad_kb is not None else {}),
+            **_overrides)
         print(f"baseline override: workload={BASELINE.workload} "
               f"dense_mode={BASELINE.dense_mode} gate_enable={BASELINE.gate_enable} "
               f"zbu_enable={BASELINE.zbu_enable} k_chunk={BASELINE.k_chunk} "
