@@ -95,11 +95,47 @@ def derive(s: DesignState) -> Derived:
     )
 
 
-def check(s: DesignState, *, predicted_area_um2: float | None = None) -> Verdict:
-    """Return a Verdict naming every violated constraint."""
+def check(s: DesignState, *, predicted_area_um2: float | None = None,
+          pinned: dict | None = None) -> Verdict:
+    """Return a Verdict naming every violated constraint.
+
+    ``pinned`` freezes fields that define the QUESTION rather than the design.
+    The caller passes the values the run was launched with; any deviation is a
+    violation.
+    """
     v: List[str] = []
     block_rows = s.meshRows * s.tileRows
     block_cols = s.meshColumns * s.tileColumns
+
+    # --- Family 0: the benchmark is not a design variable -----------------
+    # `workload` and `dense_mode` live in SW_FIELDS and are emitted as
+    # `// SPARSECRAFT` markers in SparseCraftParams.scala -- which IS the
+    # agent's writable file. Sec 9o says they "stay withheld -- an agent that
+    # can change the workload or fall back to dense mode wins by changing the
+    # question", but nothing enforced it, and loop.py picks the simulated
+    # matrix straight off the proposed state:
+    #     data_path = .../f"spmm_{child.workload}.h"
+    # So a proposal that changed the marker and happened to compile would be
+    # SIMULATED ON A DIFFERENT MATRIX and then scored against the baseline,
+    # putting points from two benchmarks on one Pareto front. Sec 9m records
+    # that every dnn* matrix behaves completely unlike the jagged ones, so the
+    # contamination would not even be subtle.
+    #
+    # Measured, run codesign15b 2026-09-20: the agent went for this on its
+    # FIRST move (jag512 -> dnn512) and again two iterations later. Only an
+    # unrelated compile error stopped it. Asked to reduce cycles, it reached
+    # for an easier benchmark -- which is reward hacking, and exactly the
+    # class of thing a gate must catch rather than a prompt discourage.
+    for _f, _want in (pinned or {}).items():
+        _got = getattr(s, _f, None)
+        if _got != _want:
+            v.append(f"sparsecraft.frozen_{_f}: {_f} is FIXED at {_want!r} for this "
+                     f"run and may not be proposed as {_got!r}. It selects the "
+                     f"benchmark, not the hardware: changing it changes the "
+                     f"question, so the result would be comparable neither to the "
+                     f"baseline nor to any other iteration. Restore the "
+                     f"`// SPARSECRAFT {_f} = {_want}` marker line and optimise the "
+                     f"design instead.")
 
     # --- Family 1: Gemmini elaboration invariants -------------------------
     if block_rows != block_cols:

@@ -119,7 +119,27 @@ ${COUNTERS}
    has already cost an iteration in this project. Keep every `// SPARSECRAFT` line
    present and well-formed: a missing one is not "unchanged", it is unparseable.
 
-7. End with the `==MUTATION==` and `==PREDICTION==` sections the system prompt requires.
+   **`workload` and `dense_mode` are frozen.** They are `// SPARSECRAFT` markers too,
+   but T0 rejects any iteration that changes them, because they choose the BENCHMARK
+   rather than the hardware — a design measured on a different matrix is comparable to
+   nothing. Reproduce those two lines exactly as you found them.
+
+7. **The design-state JSON field names are NOT the Scala parameter names.** The state
+   above is the harness's vocabulary; `${PARAMS_PATH}` is Chisel. They differ, e.g.
+
+   ```
+   state JSON            SparseCraftParams.scala
+   sp_capacity_kb: 256   sp_capacity     = CapacityInKilobytes(256),
+   acc_capacity_kb: 64   acc_capacity    = CapacityInKilobytes(64),
+   gate_enable: false    // SPARSECRAFT gate_enable = 0      (a marker, not a field)
+   ```
+
+   So do not reconstruct this file from the JSON — you will invent parameter names that
+   do not exist and fail the compile gate, which has already happened twice here
+   (`unknown parameter name: sp_capacity_kb`). `cat` the file first and rewrite it with
+   ONLY the values you mean to change, preserving its exact structure.
+
+8. End with the `==MUTATION==` and `==PREDICTION==` sections the system prompt requires.
 
 ## What not to do
 

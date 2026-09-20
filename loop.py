@@ -637,7 +637,15 @@ def main() -> int:
                 # --skip-llm, where the tree really is the baseline.
                 parsed = get(nodes.read_design_state.options(**pg_opts).chia_remote())
                 child = nodes.state_from_tree(parsed) or parent
-                verdict_t0 = t0.check(child)
+                # `pinned` freezes the benchmark. These two fields choose WHICH
+                # matrix is simulated (data_path is built from child.workload
+                # below), so leaving them free lets a proposal be measured on a
+                # different problem and still scored against this baseline --
+                # which run codesign15b's agent attempted on its first move.
+                verdict_t0 = t0.check(child, pinned={
+                    "workload": BASELINE.workload,
+                    "dense_mode": BASELINE.dense_mode,
+                })
                 record["state_hash"] = child.state_hash()
                 # The FULL design state, not just its hash. Post-hoc work -- T3
                 # synthesis of the final front, or re-measuring a point months
