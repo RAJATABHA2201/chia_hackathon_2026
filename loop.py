@@ -295,10 +295,6 @@ def main() -> int:
                          "instead of re-mvin'ing its slices once per nonzero "
                          "block. SOFTWARE lever, coupled to sp_capacity_kb: X is "
                          "2,048 scratchpad rows of 16,384 at 256 KB.")
-    ap.add_argument("--i-group", type=int, default=None,
-                    help="output block rows per accumulator-resident pass. >1 "
-                         "shares one weight preload across every block in a "
-                         "column. SOFTWARE lever bounded by acc_capacity_kb.")
     ap.add_argument("--gate", action="store_true",
                     help="enable T-A zero-gated MAC (SparseCraftRTL.gateEnable). "
                          "Changes hw_hash, so it forces a fresh elaboration.")
@@ -397,7 +393,6 @@ def main() -> int:
 
     if (args.workload or args.dense or args.gate or args.zbu or _overrides
             or args.k_chunk is not None or args.b_blocks is not None
-            or args.i_group is not None
             or args.spad_kb is not None):
         BASELINE = BASELINE.mutate(
             **({"workload": args.workload} if args.workload else {}),
@@ -405,7 +400,6 @@ def main() -> int:
             **({"gate_enable": True} if args.gate else {}),
             **({"zbu_enable": True} if args.zbu else {}),
             **({"x_resident": True} if args.x_resident else {}),
-            **({"i_group": args.i_group} if args.i_group is not None else {}),
             **({"k_chunk": args.k_chunk} if args.k_chunk is not None else {}),
             **({"b_blocks": args.b_blocks} if args.b_blocks is not None else {}),
             **({"sp_capacity_kb": args.spad_kb} if args.spad_kb is not None else {}),

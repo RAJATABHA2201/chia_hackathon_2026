@@ -116,11 +116,6 @@ class DesignState:
     # motivation: X was being re-fetched from DRAM once per nonzero block, 117
     # times, for 8.6x the ideal read traffic.
     x_resident: bool = False
-    # I-GROUP: output block rows processed per accumulator-resident pass, so a
-    # weight preload is shared across every block in a column. Bounded by
-    # acc_capacity_kb -- the group's output tiles must stay resident or Y
-    # round-trips to DRAM. 1 = the per-row schedule.
-    i_group: int = 1
     b_blocks: int = 0               # B mvin width in DIM-column tiles; 0 = auto
     a_blocks: int = 1               # A mvin width in DIM-column tiles
 
@@ -141,7 +136,7 @@ class DesignState:
         "gate_enable", "zbu_enable", "granule_size", "zbu_operand",
     )
     SW_FIELDS = ("workload", "dense_mode", "k_chunk", "b_blocks", "a_blocks",
-                 "x_resident", "i_group")
+                 "x_resident")
 
     # --------------------------------------------------------------- derived -
     @property
@@ -226,7 +221,6 @@ class DesignState:
 // SPARSECRAFT k_chunk = {self.k_chunk}
 // SPARSECRAFT b_blocks = {self.b_blocks}
 // SPARSECRAFT x_resident = {int(self.x_resident)}
-// SPARSECRAFT i_group = {self.i_group}
 // The four below are RTL-microarchitecture parameters. They are markers, NOT
 // GemminiArrayConfig fields, until Phase 3 adds the corresponding Chisel
 // parameters -- emitting them as `.copy(gate_enable = ...)` before the field

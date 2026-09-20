@@ -147,43 +147,6 @@ enum {
 #define SPMM_XRES 0
 #endif
 
-// I-GROUP: share one weight preload across several output block rows.
-//
-// Gemmini's own sp_tiled_matmul_ws reuses a loaded weight tile by passing
-// GARBAGE_ADDR as the preload SOURCE for i > 0, which keeps the weights
-// stationary and only redirects the output address. With one block row per
-// pass that reuse collapses and every (block, column-tile) pays its own
-// preload, and a preload does not compute -- measured exe_active was 0.667 on
-// jag512 and dnn1024 with memory already optimal (1.1-1.2x ideal reads), so a
-// third of the array's cycles were going to weight loads.
-//
-// Processing a GROUP of block rows lets every block sharing a column reuse one
-// preload. Preloads fall from (nonzero blocks x J) toward (block columns x J).
-//
-// BOUNDED BY THE ACCUMULATOR, which is the co-design constraint: the group's
-// output tiles must all stay resident, or Y round-trips to DRAM and the
-// accumulator-resident property that B1 is built on is destroyed.
-//   I <= acc_capacity_kb * 1024 / (DIM * N * ACC_BYTES)
-// At 64 KB with N=64 that is exactly 16 block rows (1,024 accumulator rows of
-// DIM x 4 B), so 16 fills the accumulator precisely. T0 and this bound must
-// agree; 1 disables the path and restores the per-row schedule.
-#ifndef SPMM_ACC_KB
-#define SPMM_ACC_KB 64
-#endif
-#ifndef SPMM_IGROUP
-#define SPMM_IGROUP 1
-#endif
-// Accumulator rows are DIM x ACC_BYTES. One output block-row needs J*DIM of
-// them, so the group size the accumulator can hold resident is:
-#define ACC_ROWS_AVAIL   ((SPMM_ACC_KB * 1024) / (DIM_ * 4))
-#define IGROUP_MAX       (ACC_ROWS_AVAIL / ((SPMM_N / DIM_) * DIM))
-#if SPMM_IGROUP > 1
-_Static_assert(SPMM_IGROUP <= IGROUP_MAX,
-               "SPMM_IGROUP exceeds what the accumulator can hold resident: "
-               "the group's output tiles would spill to DRAM and destroy the "
-               "accumulator-resident property. Raise acc_capacity_kb or lower it.");
-#endif
-
 #define X_SLICE_ROWS ((SPMM_N / DIM_) * DIM)     // rows per block-column slice
 #if SPMM_XRES
 #define X_SP_BASE    0u
@@ -380,83 +343,16 @@ int main(void) {
   }
 #endif
 
-
-#if SPMM_IGROUP > 1
-// One accumulator-resident pass over a GROUP of block rows.
-//   Y[bi0 .. bi0+n-1] = sum_bj  A[bi][bj] x X[bj]
-// Column-outer so every block in a column shares one weight preload.
-static void group_mac(int bi0, int n) {
-  const size_t J = SPMM_N / DIM_;
-  const uint32_t C_sp = (3u << (ADDR_LEN - 2)) | (1u << (ADDR_LEN - 3));
-  // First touch of each (row, column-tile) must OVERWRITE; every later
-  // contribution accumulates. With a per-row pass this was "k == 0", but
-  // column-outer order means a row's first contribution arrives at whichever
-  // column it first appears in, so it is tracked explicitly.
-  static uint8_t fresh[SPMM_IGROUP][SPMM_N / DIM_];
-  for (int i = 0; i < n; i++)
-    for (size_t j = 0; j < J; j++) fresh[i][j] = 1;
-
-  for (int bj = 0; bj < SPMM_KB; bj++) {
-    // Which rows of this group have a block in column bj?
-    int slot_row[SPMM_IGROUP]; int nb = 0;
-    for (int i = 0; i < n; i++)
-      if (blk_idx[bi0 + i][bj] >= 0) slot_row[nb++] = i;
-    if (nb == 0) continue;
-
-    // Stage just this column's A blocks: at most SPMM_IGROUP of them, so the
-    // scratchpad footprint is bounded regardless of how dense the matrix is.
-    gemmini_extended_config_ld(DIM_ * sizeof(elem_t), MVIN_SCALE_IDENTITY);
-    for (int t = 0; t < nb; t++)
-      gemmini_extended_mvin(spmm_A[blk_idx[bi0 + slot_row[t]][bj]][0],
-                            A_SP_BASE + (uint32_t)(t * DIM), DIM, DIM);
-
-    for (size_t j = 0; j < J; j++) {
-      for (int t = 0; t < nb; t++) {
-        const int i = slot_row[t];
-        // The weight tile is loaded ONCE per (column, column-tile); every
-        // further row reuses it via GARBAGE_ADDR.
-        const uint32_t pre = (t == 0)
-            ? (X_SP_BASE + (uint32_t)bj * X_SLICE_ROWS + (uint32_t)(j * DIM))
-            : GARBAGE_ADDR;
-        uint32_t out = C_sp + (uint32_t)(((size_t)i * J + j) * DIM);
-        if (fresh[i][j]) { out &= ~(1u << (ADDR_LEN - 2)); fresh[i][j] = 0; }
-        gemmini_extended_preload(pre, out, DIM, DIM, DIM, DIM);
-        gemmini_extended_compute_preloaded(A_SP_BASE + (uint32_t)(t * DIM),
-                                           GARBAGE_ADDR, DIM, DIM, DIM, DIM);
-      }
-    }
-  }
-
-  // Each output block row leaves the accumulator exactly once.
-  gemmini_extended_config_st(SPMM_N * sizeof(acc_t), NO_ACTIVATION,
-                             ACC_SCALE_IDENTITY);
-  for (int i = 0; i < n; i++)
-    for (size_t j = 0; j < J; j++)
-      gemmini_extended_mvout((void *)&Y[(bi0 + i) * DIM_][j * DIM_],
-                             C_sp + (uint32_t)(((size_t)i * J + j) * DIM),
-                             DIM, DIM);
-}
-#endif
-
 #if SPMM_ACCRES
   // One pass per block row. Identical control flow in both modes -- the ONLY
   // difference between B0 and B1 is which blocks row_N/row_A carry, which is
   // what makes the B0 -> B1 ratio a sparsity result and not a kernel-quality
   // one.
-#if SPMM_IGROUP > 1
-  for (int bi = 0; bi < SPMM_MB; bi += SPMM_IGROUP) {
-    int n = SPMM_MB - bi; if (n > SPMM_IGROUP) n = SPMM_IGROUP;
-    int any = 0;
-    for (int i = 0; i < n; i++) { tiles += (uint64_t)row_N[bi + i]; any |= (row_N[bi + i] != 0); }
-    if (any) group_mac(bi, n);
-  }
-#else
   for (int bi = 0; bi < SPMM_MB; bi++) {
     if (row_N[bi] == 0) continue;
     row_mac(bi, row_A[bi], row_C[bi], row_N[bi]);
     tiles += (uint64_t)row_N[bi];
   }
-#endif
 #else
   // Legacy per-block path: Y round-trips to DRAM once per block. Kept so the
   // kernel change itself can be measured against the same instrument.
