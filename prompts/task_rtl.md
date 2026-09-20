@@ -137,6 +137,26 @@ read its output in a tool result.
    has already cost an iteration in this project. Keep every `// SPARSECRAFT` line
    present and well-formed: a missing one is not "unchanged", it is unparseable.
 
+   **The SOFTWARE schedule levers are markers too, and they are yours.** These change
+   how the kernel issues work — not what it computes, so they cannot change the answer
+   and N41 still gates every one:
+
+   ```
+   // SPARSECRAFT k_chunk = 16       K-blocks per accumulator-resident pass: 4,8,16,32,64,128
+   // SPARSECRAFT b_blocks = 0       B mvin width in DIM-column tiles; 0 = auto, max 4 at dma_maxbytes=64
+   // SPARSECRAFT x_resident = 0     1 = hold ALL of X in the scratchpad for the whole matmul
+   ```
+
+   These are the co-design half: each is bounded by a HARDWARE lever and T0 rejects the
+   pair if the hardware cannot support it. `k_chunk` needs `sp_capacity_kb` to stage
+   `k_chunk*DIM` rows of A plus `k_chunk*(N/DIM)*DIM` of B; `b_blocks` is capped by
+   `dma_maxbytes`; `x_resident` needs the scratchpad to hold all 32 X slices at once
+   (2,048 rows of 16,384 at 256 KB). Raising a software lever without the hardware to
+   back it is rejected with the arithmetic in the message.
+
+   A change here needs NO elaboration, so it is measured in minutes rather than the
+   ~20 that an RTL or config change costs.
+
    **`workload` and `dense_mode` are frozen.** They are `// SPARSECRAFT` markers too,
    but T0 rejects any iteration that changes them, because they choose the BENCHMARK
    rather than the hardware — a design measured on a different matrix is comparable to
