@@ -615,7 +615,12 @@ def parse_params_scala(text: str) -> dict:
     # must keep: the workload selection, the B0 dense-mode switch, and the RTL
     # microarchitecture parameters (markers until Phase 3 makes them real
     # Chisel parameters).
-    for name in ("granule_size",):
+    # granule_size is an RTL marker; k_chunk / b_blocks are the Sec 9o software
+    # schedule levers. All three round-trip as plain integers. Without k_chunk
+    # and b_blocks here the state re-read from the tree silently fell back to
+    # the dataclass defaults, so no schedule proposal could ever survive one
+    # iteration -- the software half of "co-design" was unreachable.
+    for name in ("granule_size", "k_chunk", "b_blocks"):
         mm = re.search(rf"//\s*SPARSECRAFT\s+{name}\s*=\s*(\d+)", text)
         if mm:
             out[name] = int(mm.group(1))

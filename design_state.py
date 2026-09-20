@@ -203,6 +203,16 @@ class DesignState:
 // parses them back out, so they must be kept and kept well-formed.
 // SPARSECRAFT workload = {self.workload}
 // SPARSECRAFT dense_mode = {int(self.dense_mode)}
+// The Gemmini instruction schedule (Sec 9o's software co-design levers). They
+// reach the build as -DSPMM_KCHUNK / -DSPMM_B_BLOCKS (nodes.py), but they were
+// NOT emitted here, so nothing wrote them into the tree and read_design_state
+// could not read them back: every proposal silently reverted to the defaults
+// the moment the state was re-parsed. Measured 2026-09-20 -- a run launched
+// with k_chunk=64 reported `[SW] k_chunk 64 -> 16` and reused the baseline's
+// sw_hash, i.e. the whole software half of co-design was inert, for the agent
+// and the CLI alike.
+// SPARSECRAFT k_chunk = {self.k_chunk}
+// SPARSECRAFT b_blocks = {self.b_blocks}
 // The four below are RTL-microarchitecture parameters. They are markers, NOT
 // GemminiArrayConfig fields, until Phase 3 adds the corresponding Chisel
 // parameters -- emitting them as `.copy(gate_enable = ...)` before the field

@@ -264,6 +264,24 @@ def main() -> int:
                          "dnn512 / jag512. Overrides the baseline design "
                          "state's `workload` field. Must have a matching "
                          "workload/generated/spmm_<stem>.h")
+    # --- co-design sweep knobs -------------------------------------------
+    # The SOFTWARE half of Sec 9o, drivable without an agent so the coupling
+    # can be measured directly. k_chunk and b_blocks are SW_FIELDS: they change
+    # sw_hash but NOT hw_hash, so a sweep over them rebuilds the kernel and
+    # re-simulates without paying the ~18 min elaboration -- which is what makes
+    # a schedule sweep affordable and a capacity sweep not.
+    ap.add_argument("--k-chunk", type=int, default=None,
+                    help="K-blocks accumulated per accumulator-resident pass. "
+                         "Bounded by sp_capacity_kb: a pass stages k_chunk*dim rows "
+                         "of A plus k_chunk*(N/dim)*dim of B, and T0 rejects the "
+                         "pair if the scratchpad cannot hold it. SOFTWARE lever.")
+    ap.add_argument("--b-blocks", type=int, default=None,
+                    help="B mvin width in DIM-column tiles (0 = auto). Bounded by "
+                         "dma_maxbytes, which caps tiles per mvin. SOFTWARE lever.")
+    ap.add_argument("--spad-kb", type=int, default=None,
+                    help="scratchpad capacity in KB -- the HARDWARE half of the "
+                         "k_chunk coupling. Changes hw_hash, so it forces a fresh "
+                         "elaboration and synthesis.")
     ap.add_argument("--gate", action="store_true",
                     help="enable T-A zero-gated MAC (SparseCraftRTL.gateEnable). "
                          "Changes hw_hash, so it forces a fresh elaboration.")
@@ -337,15 +355,21 @@ def main() -> int:
     # Apply the CLI overrides to the baseline BEFORE anything is written or
     # hashed, so the cache key and the trace both describe what actually ran.
     global BASELINE
-    if args.workload or args.dense or args.gate or args.zbu:
+    if (args.workload or args.dense or args.gate or args.zbu
+            or args.k_chunk is not None or args.b_blocks is not None
+            or args.spad_kb is not None):
         BASELINE = BASELINE.mutate(
             **({"workload": args.workload} if args.workload else {}),
             **({"dense_mode": True} if args.dense else {}),
             **({"gate_enable": True} if args.gate else {}),
-            **({"zbu_enable": True} if args.zbu else {}))
+            **({"zbu_enable": True} if args.zbu else {}),
+            **({"k_chunk": args.k_chunk} if args.k_chunk is not None else {}),
+            **({"b_blocks": args.b_blocks} if args.b_blocks is not None else {}),
+            **({"sp_capacity_kb": args.spad_kb} if args.spad_kb is not None else {}))
         print(f"baseline override: workload={BASELINE.workload} "
               f"dense_mode={BASELINE.dense_mode} gate_enable={BASELINE.gate_enable} "
-              f"zbu_enable={BASELINE.zbu_enable}")
+              f"zbu_enable={BASELINE.zbu_enable} k_chunk={BASELINE.k_chunk} "
+              f"b_blocks={BASELINE.b_blocks} spad_kb={BASELINE.sp_capacity_kb}")
 
     run_dir = Path(C.RUN_DIR) / args.run_name
     run_dir.mkdir(parents=True, exist_ok=True)
