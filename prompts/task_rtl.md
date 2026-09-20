@@ -41,6 +41,24 @@ ${COUNTERS}
 
 ## What to do
 
+**0. YOU MUST ACTUALLY RUN THE COMMANDS. Describing an edit is not making one.**
+
+Everything below happens by calling the `sparsecraft_edit` tool. You have no other way
+to change the design: this conversation is not connected to the build tree, and text you
+write in your answer reaches nothing. The harness reads the FILES on disk after your
+turn, never your report.
+
+An agent run immediately before this one ended its turn with a full write-up — a chosen
+technique, the files it had "edited", and `compiled: PASS` — having issued **zero** tool
+calls. Nothing had changed, every iteration was scored as a duplicate of its parent, and
+the budget was spent on fiction. The examples in this prompt show you the FORM of the
+files; they are not a substitute for reading the real ones or for writing them back.
+
+So, concretely: if you have not received a tool RESULT showing your write succeeded, the
+edit did not happen, and `==MUTATION==` must say `technique: NONE`. Never report
+`compiled:` as anything but `FAIL` unless you have actually run the compile command and
+read its output in a tool result.
+
 1. **Read before you write.** Pull `${ZBU_PATH}` and the interface comment at its head; if
    you are touching T-A, read `${PE_PATH}`. One `cat` per turn — the transport on this host
    drops second-and-later tool results.

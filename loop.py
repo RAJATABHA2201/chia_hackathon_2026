@@ -460,6 +460,10 @@ def main() -> int:
     prev_netlist, prev_rtl_id = None, None
     front, archive = ParetoFront(), Archive()
     parent, parent_reward, diagnosis = BASELINE, 0.0, ""
+    # The parent's RTL digest, alongside its config. N21's identity is the PAIR
+    # (state_hash, rtl_digest), because an RTL-only edit leaves the config
+    # untouched and would otherwise read as a duplicate of its own parent.
+    parent_rtl_id = None
     base_point = None
     seen = set()
 
@@ -735,7 +739,47 @@ def main() -> int:
                                  "edit was made. Begin THIS turn with a tool call that "
                                  "makes one concrete edit.")
                     continue
-                if child.state_hash() in seen:
+                # ---- N21 identity: the CONFIG ALONE IS NOT THE DESIGN -----------
+                # state_hash covers the dataclass fields and nothing else, but in
+                # v3 the agent's main lever is Chisel. Improving the ZBU's
+                # granularity or the PE's gating logic changes the hardware while
+                # leaving every config field alone -- identical state_hash, so the
+                # old key filed it as DUPLICATE and threw it away UNEVALUATED,
+                # ninety lines before rtl_digest was even computed. That is the
+                # whole v3 premise ("the agent edits Chisel") silently disabled;
+                # it had not bitten yet only because the agent kept moving a
+                # config field alongside, or doing nothing.
+                #
+                # So the identity is the PAIR. Hashing the RTL here also costs
+                # nothing (five files) and makes the no-edit case detectable,
+                # which the config hash alone cannot do.
+                rtl_id = get(nodes.rtl_digest.options(**pg_opts).chia_remote())
+                record["rtl_digest"] = rtl_id
+                ident = (child.state_hash(), rtl_id)
+
+                # An agent that reports an edit it never made. Distinct from
+                # DUPLICATE ("you already tried this design") and from
+                # AGENT_FAILED ("your call errored"): here the call SUCCEEDED,
+                # the model answered in full -- technique, files, `compiled:
+                # PASS` -- and issued no tool call at all, so not one byte
+                # changed. Measured, run codesign15c 2026-09-20: three
+                # consecutive iterations of fabricated work. Telling it "you
+                # repeated a design" would be the wrong correction entirely.
+                if (it > 1 and arm is None and not args.skip_llm
+                        and ident == (parent.state_hash(), parent_rtl_id)):
+                    print("  N21 NO EDIT: neither the config nor the RTL changed")
+                    record["verdict"] = "NO_EDIT"
+                    record["wall_clock_s"] = round(time.time() - t_start, 2)
+                    (run_dir / f"iter_{it:03d}.json").write_text(json.dumps(record, indent=2))
+                    diagnosis = (
+                        "NOTHING CHANGED. Neither the config nor the RTL differs from "
+                        "your parent, so whatever you reported last turn was not "
+                        "actually written. The harness reads the FILES, never your "
+                        "report. Call the edit tool, wait for the tool RESULT that "
+                        "confirms the write, and only then describe what you did.")
+                    continue
+
+                if ident in seen:
                     print("  N21 duplicate design; asking for a different edit")
                     # Record it. A deduped iteration still consumed a turn and an
                     # LLM call, so leaving it out of the records makes the arm look
@@ -745,10 +789,11 @@ def main() -> int:
                     (run_dir / f"iter_{it:03d}.json").write_text(json.dumps(record, indent=2))
                     get(nodes.apply_design_state.options(**pg_opts)
                         .chia_remote(json.dumps(parent.canonical())))
-                    diagnosis = (f"design {child.state_hash()} was ALREADY EVALUATED. "
-                                 f"Do not propose it again -- change a DIFFERENT lever.")
+                    diagnosis = (f"design {child.state_hash()} with this RTL was ALREADY "
+                                 f"EVALUATED. Do not propose it again -- change a "
+                                 f"DIFFERENT lever, or change the RTL mechanism.")
                     continue
-                seen.add(child.state_hash())
+                seen.add(ident)
 
                 # ---- N12 RTL compile gate ---------------------------------------
                 # 17-19 s against a ~5 min iteration. Catches the Chisel type
@@ -825,8 +870,9 @@ def main() -> int:
                 #                    RTL-only edit reuses the PREVIOUS build
                 #   t<N>             VERILATOR_THREADS, a build-time flag that
                 #                    changes the simulator binary
-                rtl_id = get(nodes.rtl_digest.options(**pg_opts).chia_remote())
-                record["rtl_digest"] = rtl_id
+                # rtl_id was already computed for the N21 identity above -- the
+                # tree has not been touched since, so recomputing it here would
+                # only be a second hash of the same five files.
                 hw_tag = ((f"hwsrc:{child.hw_hash()}" if args.synth
                            else f"hw:{child.hw_hash()}")
                           + f"+rtl{rtl_id}@t{C.VERILATOR_THREADS}")
@@ -1157,6 +1203,10 @@ def main() -> int:
 
                 if v in (Verdict.ADMIT_FRONT, Verdict.ADMIT_ARCHIVE, Verdict.ADMIT_STEP):
                     parent, parent_reward = child, info.get("reward", parent_reward)
+                    # The RTL travels with the config: the tree now holds this
+                    # design's Chisel, so the next iteration's "did anything
+                    # change?" test has to compare against THIS digest.
+                    parent_rtl_id = rtl_id
                     last_admitted, last_reward = True, info.get("reward")
                 else:
                     # Roll the TREE back to `parent`. Without this the tree keeps
