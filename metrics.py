@@ -32,6 +32,10 @@ REQUIRED = (
 )
 
 OPTIONAL = (
+    # Scratchpad row reads the ZBU suppressed. OPTIONAL rather than REQUIRED
+    # because it only exists when zbuEnable is true -- with T-B off the whole
+    # counter is elaborated away, and demanding it would fail every baseline.
+    "ZBU_SKIPPED_ROWS",
     "MAC_GATED_TOTAL", "macs_issued", "tiles_issued", "equiv_mismatches",
     "MAIN_LD_CYCLES", "MAIN_ST_CYCLES", "MAIN_EX_CYCLES",
     "LOAD_SCRATCHPAD_WAIT_CYCLE", "STORE_SCRATCHPAD_WAIT_CYCLE",

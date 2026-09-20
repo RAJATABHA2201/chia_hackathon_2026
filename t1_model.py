@@ -335,8 +335,37 @@ def energy_report(s: DesignState, m, w: Workload, period_ns: float) -> EnergyRep
     # Two operand bytes per issued MAC. A skipped granule never reaches the
     # array, so T-B removes these as well as the multiply -- which is why it
     # dominates T-A on this workload (plan Sec 9f).
+    #
+    # That comment described the INTENT for three revisions while the formula
+    # below charged a flat macs_issued, which a suppressed read does not
+    # change. So T-B was invisible: measured 2026-09-20, enabling the ZBU cost
+    # +4.4% area and moved energy by exactly 0.00 uJ, making it strictly
+    # Pareto-dominated however well it worked. ZBU_SKIPPED_ROWS closes that.
     sram_scale = math.sqrt(max(1.0, sram_bytes_exact(s) / (256 * 1024)))
-    e_sram = macs_issued * 2 * INPUT_BYTES * ENERGY_PJ_PER_SRAM_BYTE * sram_scale
+    sram_bytes_charged = macs_issued * 2 * INPUT_BYTES
+
+    # One suppressed row read avoids a DIM-wide vector of the A operand.
+    zbu_rows = int(m.counters.get("ZBU_SKIPPED_ROWS", 0) or 0)
+    zbu_saved_bytes = zbu_rows * w.dim * INPUT_BYTES
+
+    # The seed ZBU suppresses the A read only; B is still fetched. So the
+    # saving cannot exceed the A-operand half of on-chip traffic. Asserted
+    # rather than clamped, for the reason the MAC_GATED guard above exists: a
+    # counter that over-reports produces a plausible-looking energy number, and
+    # a wrong number that looks right is worse than a failed iteration. If a
+    # future ZBU also skips the B read, widen this bound deliberately and say
+    # so -- do not let it pass silently.
+    a_operand_bytes = sram_bytes_charged / 2.0
+    if zbu_saved_bytes > a_operand_bytes:
+        raise ValueError(
+            f"ZBU_SKIPPED_ROWS={zbu_rows:,} implies {zbu_saved_bytes:,.0f} B of avoided "
+            f"A-operand reads, which exceeds the {a_operand_bytes:,.0f} B the model "
+            f"charges for the A operand at macs_issued={macs_issued:,}. The ZBU counter "
+            f"is over-counting -- check the PopCount guard in rtl_scaffold.apply_tb "
+            f"before trusting any energy number from this iteration.")
+
+    e_sram = ((sram_bytes_charged - zbu_saved_bytes)
+              * ENERGY_PJ_PER_SRAM_BYTE * sram_scale)
 
     # --- off-chip traffic: MEASURED --------------------------------------
     dram_bytes = m.bytes_offchip()

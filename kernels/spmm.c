@@ -64,9 +64,17 @@ static int32_t blk_idx[SPMM_MB][SPMM_KB];
 // load-bearing of the eight, while MAC_GATED_TOTAL is what turns the T-A
 // energy claim from modelled into measured. RDMA/WDMA bytes are NOT
 // negotiable -- N53 charges DRAM energy off them, and that is ~85% of total.
+//
+// RESERVATION_STATION_FULL_CYCLES has now been dropped for ZBU_SKIPPED_ROWS,
+// for the same reason and by the same argument: it was the least load-bearing
+// of the remaining eight (diagnose() notes it is a free-running accumulation
+// that routinely exceeds the cycle count, so an absolute threshold on it is
+// meaningless), while ZBU_SKIPPED_ROWS is what turns the T-B energy claim from
+// unmeasurable into measured. Without it e_sram is derived from macs_issued,
+// which a suppressed read does not change, so the ZBU scores as pure area cost.
 enum {
   C_EXE_ACTIVE = 0, C_LOAD_DMA_WAIT, C_SPAD_A_WAIT, C_SPAD_B_WAIT,
-  C_RS_FULL, C_MAC_GATED, C_RDMA_BYTES, C_WDMA_BYTES
+  C_ZBU_SKIPPED, C_MAC_GATED, C_RDMA_BYTES, C_WDMA_BYTES
 };
 
 // ACCUMULATOR-RESIDENT PATH (default). See plan Sec 9j.
@@ -273,7 +281,7 @@ int main(void) {
   counter_configure(C_LOAD_DMA_WAIT, LOAD_DMA_WAIT_CYCLE);
   counter_configure(C_SPAD_A_WAIT,   SCRATCHPAD_A_WAIT_CYCLE);
   counter_configure(C_SPAD_B_WAIT,   SCRATCHPAD_B_WAIT_CYCLE);
-  counter_configure(C_RS_FULL,       RESERVATION_STATION_FULL_CYCLES);
+  counter_configure(C_ZBU_SKIPPED,   ZBU_SKIPPED_ROWS);
   counter_configure(C_MAC_GATED,     MAC_GATED_TOTAL);
   counter_configure(C_RDMA_BYTES,    RDMA_BYTES_REC);
   counter_configure(C_WDMA_BYTES,    WDMA_BYTES_SENT);
@@ -353,7 +361,7 @@ int main(void) {
   printf("SPARSECRAFT LOAD_DMA_WAIT_CYCLE=%u\n", counter_read(C_LOAD_DMA_WAIT));
   printf("SPARSECRAFT SCRATCHPAD_A_WAIT_CYCLE=%u\n", counter_read(C_SPAD_A_WAIT));
   printf("SPARSECRAFT SCRATCHPAD_B_WAIT_CYCLE=%u\n", counter_read(C_SPAD_B_WAIT));
-  printf("SPARSECRAFT RESERVATION_STATION_FULL_CYCLES=%u\n", counter_read(C_RS_FULL));
+  printf("SPARSECRAFT ZBU_SKIPPED_ROWS=%u\n", counter_read(C_ZBU_SKIPPED));
   printf("SPARSECRAFT MAC_GATED_TOTAL=%u\n", counter_read(C_MAC_GATED));
   printf("SPARSECRAFT RDMA_BYTES_REC=%u\n", counter_read(C_RDMA_BYTES));
   printf("SPARSECRAFT WDMA_BYTES_SENT=%u\n", counter_read(C_WDMA_BYTES));
