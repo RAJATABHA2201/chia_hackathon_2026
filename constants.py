@@ -88,7 +88,31 @@ BASELINE_CONFIG_NAME = "LeanGemminiRocketConfig"
 # At 32 GB the safe budget was ~16 and even that OOMed when other tenants held
 # memory. At 61 GB, 24 x 1.5 GB = 36 GB still leaves ~20 GB for the raylets,
 # the container runtime and the other user on this shared box.
-BUILD_MAKE_JOBS = int(os.environ.get("SPARSECRAFT_MAKE_JOBS", "24"))
+def _safe_make_jobs() -> int:
+    """`make -j` sized from the RAM THIS host has, not the one it was tuned on.
+
+    The 24 above was calibrated for a 64 GB configuration. Measured 2026-09-24
+    the host is back to 30 GB with ~10 GB free, and 24 concurrent g++ at
+    1.0-1.5 GB each wants 24-36 GB -- which is precisely the OOM that killed an
+    elaboration at minute 19 and a 15-iteration run at iteration 1 during the
+    32 GB era. A hard-coded constant cannot notice that; MemAvailable can.
+
+    Budget 1.5 GB per compiler against available memory, keep 4 GB back for the
+    raylets and the container runtime, and clamp to [4, 24].
+    """
+    env = os.environ.get("SPARSECRAFT_MAKE_JOBS")
+    if env:
+        return int(env)
+    try:
+        with open("/proc/meminfo") as f:
+            avail_gb = next(int(l.split()[1]) for l in f
+                            if l.startswith("MemAvailable")) / 1048576.0
+    except Exception:                                        # noqa: BLE001
+        return 8
+    return max(4, min(24, int((avail_gb - 4.0) / 1.5)))
+
+
+BUILD_MAKE_JOBS = _safe_make_jobs()
 
 # Verilator simulation threading. This is a BUILD-time flag
 # (chipyard sims/verilator/Makefile:124 `VERILATOR_THREADS ?= 1`), passed
@@ -98,7 +122,7 @@ BUILD_MAKE_JOBS = int(os.environ.get("SPARSECRAFT_MAKE_JOBS", "24"))
 # It was effectively 1 until 2026-09-19 (extra_make_args was empty), which made
 # every simulation single-threaded; setting it to 16 gave ~6x. The cluster.yaml
 # constraint is `concurrent sims x threads <= cores`.
-VERILATOR_THREADS = int(os.environ.get("SPARSECRAFT_VERILATOR_THREADS", "16"))
+VERILATOR_THREADS = int(os.environ.get("SPARSECRAFT_VERILATOR_THREADS", "32"))
 
 # --- Ray resource names (must match cluster.yaml) ---------------------------
 R_CHIPYARD = "chipyard"
@@ -182,8 +206,14 @@ def runtime_env() -> dict:
     # driver by agent.make_llm and travels inside the constructed LLM object, so
     # a worker never needs it in its environment -- and it never lands in a
     # runtime_env that Ray logs and echoes back in job metadata.
+    # MAKE_JOBS and VERILATOR_THREADS must be forwarded or they do nothing.
+    # constants.py is imported ON THE WORKER, inside the container, so a value
+    # exported in the driver's shell never reaches the process that actually
+    # runs `make -j`. Setting SPARSECRAFT_MAKE_JOBS=8 and watching elaboration
+    # still fork 24 compilers -- and OOM -- is the failure this prevents.
     for var in ("SPARSECRAFT_LLM_BACKEND", "SPARSECRAFT_LLM_MODEL",
-                "SPARSECRAFT_SYNTH_TECH", "SPARSECRAFT_SYNTH_CLOCK_NS"):
+                "SPARSECRAFT_SYNTH_TECH", "SPARSECRAFT_SYNTH_CLOCK_NS",
+                "SPARSECRAFT_MAKE_JOBS", "SPARSECRAFT_VERILATOR_THREADS"):
         if os.environ.get(var):
             env_vars[var] = os.environ[var]
     # Ship the modules INDIVIDUALLY, not the package directory.

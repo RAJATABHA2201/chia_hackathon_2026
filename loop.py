@@ -238,6 +238,107 @@ def write_status(path: Path, state: DesignState, m, verdict: str, er=None) -> No
     path.write_text("\n".join(lines) + "\n")
 
 
+# The Claude Code backend is the only one here that can hit a SUBSCRIPTION
+# usage limit rather than a per-minute API rate limit, and CHIA raises
+# RateLimitError for it without retrying (chia/models/claude.py: it is in the
+# "never retry, propagate immediately" set, correctly -- retrying in a tight
+# loop cannot help).
+#
+# Imported lazily and tolerantly: a gemini or vertex arm must not fail to start
+# because the claude backend is not importable. An EMPTY tuple in an `except`
+# clause matches nothing, which is exactly the no-op wanted there.
+try:
+    from chia.models.claude import RateLimitError as _ClaudeRateLimitError
+    RATE_LIMIT_ERRORS: tuple = (_ClaudeRateLimitError,)
+except Exception:                                                # noqa: BLE001
+    RATE_LIMIT_ERRORS = ()
+
+# A usage window is hours, not minutes, so the ceiling has to be hours too --
+# but not unbounded, or a misparsed reset date parks an overnight run forever.
+RATE_LIMIT_MAX_WAIT_S = int(os.environ.get("SPARSECRAFT_RATE_LIMIT_MAX_WAIT_S", 6 * 3600))
+RATE_LIMIT_RETRIES = int(os.environ.get("SPARSECRAFT_RATE_LIMIT_RETRIES", 3))
+
+
+def measured_activity(state, m) -> float | None:
+    """Global switching activity for OpenSTA, derived from THIS run's counters.
+
+    Returned as toggles per clock cycle for `set_power_activity -global`, or
+    None when the counters needed are absent (then OpenSTA uses its own default
+    toggle rates and the result is labelled "default" rather than "measured").
+
+    WHAT THIS IS, stated plainly because a power number inherits the honesty of
+    its activity figure: ONE SCALAR applied to every net. It is derived from
+    measurement -- the MAC issue rate this workload actually achieved -- but it
+    is not per-net measured activity. Only a VCD or SAIF from a gate-level
+    simulation gives that, and gate-level simulation is orders of magnitude
+    slower than the 16-minute RTL run. So this sits honestly between OpenSTA's
+    default guess and a real trace, and `power_activity_source` on the result
+    says which of the three produced any given number.
+
+    The derivation: `macs_issued / (cycles * dim^2)` is the fraction of MAC
+    slots the workload exercised. When gating is ON, a zero-operand MAC holds
+    its operand register instead of toggling the multiplier, so the gated
+    fraction is removed -- which is precisely the mechanism T-A claims, now
+    priced by the power tool rather than asserted by a constant.
+    """
+    c = getattr(m, "counters", None) or {}
+    cycles = getattr(m, "cycles", 0) or 0
+    dim = c.get("dim") or 0
+    issued = c.get("macs_issued") or 0
+    if not (cycles and dim and issued):
+        return None
+    slots = cycles * dim * dim
+    if slots <= 0:
+        return None
+    act = issued / slots
+    gated = c.get("MAC_GATED_TOTAL")
+    if getattr(state, "gate_enable", False) and gated:
+        act *= max(0.0, 1.0 - (gated / issued))
+    # OpenSTA takes toggles/cycle; clamp to a sane band so a broken counter
+    # cannot produce a nonsense annotation that silently prices the design.
+    return float(min(max(act, 1e-4), 2.0))
+
+
+def agent_turn(implement_llm, msg_text: str, tools: list):
+    """One agentic turn, waiting out a usage limit instead of dying on it.
+
+    Retried HERE, around the call, rather than at the iteration level, and the
+    distinction is the whole point. The generic per-iteration handler in main()
+    catches everything and moves to the next proposal -- right for an OOM or a
+    container that died, badly wrong for a usage limit: the next iteration hits
+    the same limit within milliseconds, so a 20-iteration run that reaches the
+    limit at iteration 6 does not lose one iteration, it loses fourteen, each
+    filed as INFRA_FAILURE seconds apart. That is what happened to run
+    `agent15` for a different reason, and it is not worth repeating.
+
+    Waiting here instead costs the wall clock and keeps the iteration: no state
+    is unwound, the proposal is re-issued unchanged, and the budget is intact.
+    """
+    last = None
+    for attempt in range(1, RATE_LIMIT_RETRIES + 1):
+        try:
+            return get(implement_llm.prompt.options(**C.LLM_OPTS)
+                       .chia_remote(implement_llm, msg_text, tools))
+        except RATE_LIMIT_ERRORS as exc:                          # noqa: PERF203
+            last = exc
+            reset = getattr(exc, "reset_time", None)
+            wait = RATE_LIMIT_MAX_WAIT_S
+            if reset is not None:
+                from datetime import datetime, timezone
+                now = datetime.now(reset.tzinfo or timezone.utc)
+                wait = (reset - now).total_seconds()
+            # +60s of slack: waking up exactly at the boundary earns a second
+            # rate limit and burns a retry for nothing.
+            wait = max(60.0, min(float(wait) + 60.0, RATE_LIMIT_MAX_WAIT_S))
+            if attempt == RATE_LIMIT_RETRIES:
+                break
+            print(f"  !! USAGE LIMIT (attempt {attempt}/{RATE_LIMIT_RETRIES}). "
+                  f"resets {reset}; sleeping {wait/60:.0f} min, then re-issuing "
+                  f"this same turn.", flush=True)
+            time.sleep(wait)
+    raise last
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--iters", type=int, default=5)
@@ -254,10 +355,30 @@ def main() -> int:
     ap.add_argument("--skip-llm", action="store_true",
                     help="re-run the harness against the CURRENT tree without an "
                          "agentic turn (real nodes, no fabricated results)")
+    # Default OFF, i.e. everything recomputed. The cache is content-addressed
+    # and provably cannot serve a stale result for a NEW design -- a hit needs
+    # an identical hw_hash / rtl_digest / sw_hash -- so this changes nothing
+    # about what the agent's proposals measure. What it changes is the
+    # BASELINE, which is byte-identical run to run and was previously a
+    # seconds-long hit. Recomputing it costs 20-40 min and buys the property
+    # that every number in the run came from a tool that ran during the run.
+    # See no_cache.yaml.
+    ap.add_argument("--cache-scope", choices=("run", "global", "off"),
+                    default="run",
+                    help="who may satisfy a cache hit. 'run' (default): only "
+                         "work done EARLIER IN THIS RUN -- the cache starts "
+                         "empty in the run directory, so a repeated design is "
+                         "cheap but nothing from an older run can leak in. "
+                         "'global': the shared cache, reusable across runs. "
+                         "'off': recompute every node, reuse nothing.")
+    ap.add_argument("--no-cache", dest="cache_scope", action="store_const",
+                    const="off", help="alias for --cache-scope off.")
+    ap.add_argument("--cache", dest="cache_scope", action="store_const",
+                    const="run", help="alias for --cache-scope run.")
     ap.add_argument("--backend", default=None,
-                    help="LLM backend (gemini, vertex, openai, anthropic, "
-                         "openrouter, groq, opencode). Default: "
-                         "$SPARSECRAFT_LLM_BACKEND, else gemini")
+                    help="LLM backend (claude, gemini, vertex, openai, "
+                         "claude_api, anthropic, openrouter, groq, opencode). "
+                         "Default: $SPARSECRAFT_LLM_BACKEND, else claude")
     ap.add_argument("--model", default=None,
                     help="model id; default is the backend's own default")
     ap.add_argument("--workload", default=None,
@@ -434,8 +555,30 @@ def main() -> int:
              runtime_env=runtime_env, ignore_reinit_error=True)
     start_collector(log_dir=str(run_dir / "profile"))
 
-    cfg = str(Path(__file__).resolve().parent / "bypass_cache.yaml")
-    cache = start_cache(size=32, units="GB", cache_dir_path=C.CACHE_DIR, yaml_path=cfg)
+    # Two independent dials, and conflating them is what made the old --cache
+    # unsafe: the YAML decides WHICH NODES may be served, the cache DIRECTORY
+    # decides WHOSE WORK may serve them.
+    #
+    # scope="run" points the directory inside run_dir, so it starts EMPTY. A
+    # design the agent repeats within this run is a hit (worth having -- the
+    # agent does revisit points), while nothing an earlier run computed can
+    # satisfy anything here. That is the property that makes a run's numbers
+    # re-derivable from the run itself.
+    if args.cache_scope == "off":
+        cfg_name, cache_dir = "no_cache.yaml", C.CACHE_DIR
+        policy = "recomputing every node, reusing nothing"
+    elif args.cache_scope == "global":
+        cfg_name, cache_dir = "bypass_cache.yaml", C.CACHE_DIR
+        policy = f"reusing exact-hash hits from ANY run ({C.CACHE_DIR})"
+    else:
+        cfg_name, cache_dir = "bypass_cache.yaml", str(run_dir / "cache")
+        policy = "reusing exact-hash hits from THIS RUN only"
+    os.makedirs(cache_dir, exist_ok=True)
+    # Printed, not silent: "why did that take 40 minutes" and "why was that
+    # instant" are the same question, and the answer is this line.
+    cfg = str(Path(__file__).resolve().parent / cfg_name)
+    print(f"cache policy: {args.cache_scope} ({cfg_name}) -- {policy}")
+    cache = start_cache(size=32, units="GB", cache_dir_path=cache_dir, yaml_path=cfg)
     Bypass(yaml_path=cfg)
 
     def _is_failure(value) -> bool:
@@ -669,8 +812,7 @@ def main() -> int:
                         DIAGNOSIS=diagnosis or "(first iteration - no measurement yet)",
                         COUNTERS=last_counters,
                     )
-                    cli = get(implement_llm.prompt.options(**C.LLM_OPTS)
-                              .chia_remote(implement_llm, msg_text, tools))
+                    cli = agent_turn(implement_llm, msg_text, tools)
                     (run_dir / f"llm_{it:03d}.md").write_text(cli.result or "")
                     record["llm_returncode"] = cli.returncode
 
@@ -1084,6 +1226,8 @@ def main() -> int:
                 # to lose precision, not a reason to lose the measurement N50 just
                 # made.
                 area_um2, period_ns, area_src = pred.area_um2, pred.period_ns, "T1_MODEL"
+                # From the counters this iteration actually produced.
+                _activity = measured_activity(child, m)
                 if args.synth:
                   # A synthesis OOM RAISES out of get() rather than returning
                   # success=False, so the `else` branch below never sees it and the
@@ -1121,12 +1265,32 @@ def main() -> int:
                                       if C.SYNTH_TOP_MODULE in ("auto", "", None)
                                       else C.SYNTH_TOP_MODULE),
                           clock_period_ns=args.synth_clock_ns,
+                          activity=_activity,
+                          # ACTIVITY IS IN THE TAG, and it has to be. Area and
+                          # Fmax are properties of the hardware alone, which is
+                          # why this used to key on hw_hash only -- but power
+                          # is not: the same netlist at a different toggle rate
+                          # is a different power number. A software-only
+                          # mutation changes the activity while leaving
+                          # hw_hash alone, so without this the cache would
+                          # hand back the previous design's power and call it
+                          # measured. Costs synthesis reuse across sw moves;
+                          # correctness of a measured number is worth more.
                           _chia_tag=(f"synr:{child.hw_hash()}@{args.synth_tech}"
-                                     f"@{args.synth_clock_ns}")))
+                                     f"@{args.synth_clock_ns}"
+                                     f"@a{_activity:.6f}" if _activity is not None
+                                     else f"synr:{child.hw_hash()}@{args.synth_tech}"
+                                          f"@{args.synth_clock_ns}@adefault")))
                       record["t3_synthesis"] = {
                           "success": syn.success, "top_module": syn.top_module,
                           "technology": args.synth_tech, "area_um2": syn.area_um2,
                           "power_total_w": syn.power_total_w,
+                          "power_internal_w": syn.power_internal_w,
+                          "power_switching_w": syn.power_switching_w,
+                          "power_leakage_w": syn.power_leakage_w,
+                          "power_activity_source": syn.power_activity_source,
+                          "power_activity": syn.power_activity,
+                          "sta_tail": syn.sta_tail,
                           "cone_files": syn.cone_files,
                           "staged_files": syn.staged_files,
                           "cell_count": syn.cell_count, "seq_cells": syn.seq_cell_count,
@@ -1151,8 +1315,33 @@ def main() -> int:
                           # Fmax is the achieved period, not the requested one. When
                           # STA could not produce a slack we keep the target rather
                           # than inventing one, and the source string records that.
-                          if syn.fmax_mhz:
+                          # A NEGATIVE SLACK LARGER THAN THE TARGET MEANS THE
+                          # TIMING RESULT IS NOT USABLE, and must not be turned
+                          # into a period. Measured 2026-09-24: slack came back
+                          # -5150.49 ns against a 2.0 ns target, i.e. fmax
+                          # 0.194 MHz. Dividing 1000 by that gives a 5152 ns
+                          # period, and since E = P x cycles x period, energy
+                          # came out 5.4 J instead of ~95 uJ -- a 2500x
+                          # inflation produced entirely by trusting a number
+                          # the tool had already flagged as hopeless.
+                          #
+                          # A design that misses its target by more than 2x has
+                          # not been meaningfully timed (unconstrained paths
+                          # through blackboxed SRAM macros are the usual
+                          # cause). Keep the target period and say so, exactly
+                          # as when STA produced nothing at all.
+                          _slack = syn.worst_slack_ns
+                          _fmax_ok = bool(syn.fmax_mhz) and (
+                              _slack is None or _slack > -syn.clock_target_ns)
+                          if _fmax_ok:
                               period_ns = 1000.0 / syn.fmax_mhz
+                          elif syn.fmax_mhz:
+                              period_ns = syn.clock_target_ns
+                              area_src = f"{area_src}_TIMING_UNUSABLE"
+                              print(f"  N52 timing REJECTED: slack={_slack:.1f}ns vs "
+                                    f"{syn.clock_target_ns}ns target "
+                                    f"(fmax {syn.fmax_mhz:.3f}MHz implausible); "
+                                    f"using the target period for energy")
                           else:
                               period_ns, area_src = syn.clock_target_ns, f"{area_src}_NOSTA"
                           fmax = f"{syn.fmax_mhz:.1f}MHz" if syn.fmax_mhz else "n/a"
@@ -1180,8 +1369,59 @@ def main() -> int:
                 # the largest term is measured rather than modelled.
                 er = energy_report(child, m, workload, period_ns)
                 record["energy"] = er.to_dict()
-                print(f"  N53 energy={er.energy_pj/1e6:,.2f} uJ  power={er.power_w:.3f} W  "
-                      f"perf={er.perf_gops:.2f} GOPS  perf/W={er.perf_per_watt_gops_w:.2f} GOPS/W")
+
+                # ---- THE POWER TIER -------------------------------------------
+                # Until 2026-09-24 the comment here read "E stays T1's: there is
+                # no power tier", and the E that reached the Pareto front came
+                # from three constants (ENERGY_PJ_PER_MAC/SRAM_BYTE/DRAM_BYTE).
+                # Now, whenever synthesis produced a power figure, energy is
+                # computed from it instead:
+                #
+                #     E [pJ] = P [W] x cycles x period_ns x 1e3
+                #
+                # Both inputs are measured -- P by OpenSTA on the mapped
+                # netlist, cycles by the simulator -- so the product is too.
+                # `energy_source` records which path ran, and the fallback to
+                # the model is explicit rather than silent, because a run whose
+                # energy quietly changed meaning mid-way is unpublishable.
+                # WHICH ENERGY IS SCORED is an explicit choice, not a silent
+                # preference. SPARSECRAFT_ENERGY_SOURCE=measured switches the
+                # Pareto objective to OpenSTA's power; the DEFAULT is the T1
+                # model, and the reason is measured, not stylistic:
+                #
+                #   model, on-chip only   0.1211 W
+                #   OpenSTA (same scope)  9.8241 W   -> 81x
+                #
+                # which decomposes exactly into (a) ~15x from annotating every
+                # net with the MAC-array utilisation instead of propagating
+                # from the primary inputs, and (b) ~5.3x because t1_model
+                # charges ONLY macs_issued and SRAM bytes and has no term at
+                # all for control, DMA, TLB, xactTracker, clock tree or
+                # leakage -- roughly 90% of the 2.1M cells. (b) is the model
+                # being wrong; (a) was a harness bug. Until the activity is
+                # annotated from a gate-level VCD, the OpenSTA figure is
+                # RECORDED on every iteration but does not move the front.
+                energy_pj, energy_src = er.energy_pj, "T1_MODEL"
+                power_w = er.power_w
+                _pw = record.get("t3_synthesis", {}).get("power_total_w")
+                _pa = record.get("t3_synthesis", {}).get("power_activity_source")
+                record["t3_power_w"] = _pw            # always recorded
+                record["t3_energy_pj"] = (float(_pw) * m.cycles * period_ns * 1e3
+                                          if _pw and _pw > 0 else None)
+                if _pw and _pw > 0 and os.environ.get(
+                        "SPARSECRAFT_ENERGY_SOURCE", "model").lower() == "measured":
+                    power_w = float(_pw)
+                    energy_pj = power_w * m.cycles * period_ns * 1e3
+                    energy_src = f"T3_OPENSTA_{(_pa or 'unknown').upper()}"
+                record["energy_pj"] = energy_pj
+                record["energy_source"] = energy_src
+                record["power_w"] = power_w
+
+                _perf_gops = er.perf_gops
+                _ppw = (_perf_gops / power_w) if power_w > 0 else 0.0
+                print(f"  N53 energy={energy_pj/1e6:,.2f} uJ  power={power_w:.4f} W  "
+                      f"perf={_perf_gops:.2f} GOPS  perf/W={_ppw:.2f} GOPS/W  "
+                      f"[{energy_src}]")
                 print(f"      mac_eff={er.mac_efficiency:.1%} "
                       f"(useful/issued)  breakdown mac/sram/dram = "
                       f"{er.breakdown['mac_pct']:.0f}/{er.breakdown['sram_pct']:.0f}/"
@@ -1190,10 +1430,12 @@ def main() -> int:
                       f"{'' if er.gating_measured else '  [gating modelled]'}")
 
                 # ---- N60 score + Pareto admit -----------------------------------
-                # E stays T1's: there is no power tier. t and A are measured
-                # whenever T3 ran, and `area_source` in the record says which.
+                # All three objectives are now measured whenever T3 ran: t from
+                # the simulator, A from yosys, E from OpenSTA's power on the
+                # mapped netlist. `area_source` and `energy_source` in the
+                # record say which path produced each.
                 point = Point(state_hash=child.state_hash(), parent_hash=parent.state_hash(),
-                              t=m.cycles * period_ns, E=er.energy_pj, A=area_um2,
+                              t=m.cycles * period_ns, E=energy_pj, A=area_um2,
                               sram_bytes=pred.sram_bytes,
                               # Workload is SpMM-shaped now: `density`/`n_blocks()` belonged to
                               # the retired attention Workload. The MAP-Elites niche should
@@ -1242,9 +1484,13 @@ def main() -> int:
                 print("  " + "=" * 64)
                 print(f"  ITERATION {it} RESULTS          value        vs baseline")
                 print(f"    cycles           {m.cycles:>15,}   {_vs(m.cycles, _b['cyc'])}")
-                print(f"    energy           {er.energy_pj/1e6:>12,.2f} uJ   {_vs(er.energy_pj, _b['E'])}")
-                print(f"    power            {er.power_w:>13.3f} W")
-                print(f"    perf/W           {er.perf_per_watt_gops_w:>9.2f} GOPS/W   "
+                # energy_pj / power_w / _ppw, NOT er.* -- the table has to show the
+                # numbers that reached the Pareto front. It printed er.* while
+                # N53 printed the measured ones, so one iteration reported two
+                # different energies four lines apart.
+                print(f"    energy           {energy_pj/1e6:>12,.2f} uJ   {_vs(energy_pj, _b['E'])}   [{energy_src}]")
+                print(f"    power            {power_w:>13.4f} W")
+                print(f"    perf/W           {_ppw:>9.2f} GOPS/W   "
                       f"{_vs(er.perf_per_watt_gops_w, _b['ppw'], True)}")
                 print(f"    area             {area_um2/1e6:>12.3f} mm2   {_vs(area_um2, _b['A'])}"
                       f"   [{record.get('area_source', '?')}]")

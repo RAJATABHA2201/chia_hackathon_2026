@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # One command: preflight, cluster up, loop, cluster down.
 #
+# Claude Code as the agent (the default). Needs no key and no cloud project --
+# the CLI uses the login already on this host:
+#   claude            # once, interactively, if `claude auth` has never run
+#   ./run.sh --iters 20 --synth
+#
 # Vertex (bills to GCP credits; project/location default in the env block below):
 #   gcloud auth application-default login --no-launch-browser   # once
 #   ./run.sh --backend vertex --iters 20 --synth
@@ -30,12 +35,18 @@ usage() {
 usage: ./run.sh [options] [-- extra loop.py args]
 
   --iters N          iterations (default $ITERS)
-  --backend NAME     gemini | vertex | openai | anthropic | openrouter | groq
+  --backend NAME     claude | gemini | vertex | openai | claude_api |
+                     anthropic | openrouter | groq   (default: claude)
   --model ID         model id; default is the backend's own
   --synth            score on MEASURED area and Fmax (T3), not T1's model
   --proposer NAME    agent | random | greedy -- who picks the next design.
                      random and greedy are the non-agentic control arms and
                      use no model, so they need no credentials.
+  --cache-scope S    who may satisfy a cache hit: run (default) | global | off.
+                     run   = only work done earlier in THIS run; the cache
+                             starts empty, so nothing from an older run leaks in.
+                     global= the shared cache, reusable across runs.
+                     off   = recompute everything.
   --skip-llm         run the harness with no model at all
   --no-up            assume the cluster is already running
   --no-down          leave the cluster up when the loop finishes
@@ -60,6 +71,9 @@ while [[ $# -gt 0 ]]; do
                           # hiccup.
                           [[ "$2" != "agent" ]] && NEEDS_LLM=0
                           shift 2 ;;
+        --cache-scope)    EXTRA+=(--cache-scope "$2"); shift 2 ;;
+        --cache)          EXTRA+=(--cache); shift ;;
+        --no-cache)       EXTRA+=(--no-cache); shift ;;
         --skip-llm)       EXTRA+=(--skip-llm); shift ;;
         --no-up)          BRING_UP=0; shift ;;
         --no-down)        TEAR_DOWN=0; shift ;;
@@ -115,9 +129,12 @@ if [[ $SKIP_PREFLIGHT -eq 0 ]]; then
         say "preflight 1/2: can we reach the model?"
         if ! python check_llm.py; then
             echo
-            echo "The loop needs a model. The shortest path:"
+            echo "The loop needs a model. The shortest path, if the default"
+            echo "claude backend is not logged in:"
+            echo "    claude            # once, interactively, to log in"
+            echo "Or a key-based backend instead:"
             echo "    export GEMINI_API_KEY=...   # https://aistudio.google.com/apikey"
-            echo "    ./run.sh"
+            echo "    ./run.sh --backend gemini"
             echo "Other options:  python check_llm.py --list"
             echo "Or run the harness with no model at all:  ./run.sh --skip-llm"
             exit 1
@@ -158,8 +175,13 @@ if [[ $SUBMIT -eq 1 ]]; then
     # --submit the driver is on this same host.
     RT_JSON=$(python - <<'PY'
 import json, os
+# SPARSECRAFT_* already covers SPARSECRAFT_CLAUDE_{BIN,EFFORT,...}. PATH is
+# added for the claude backend: the driver execs the bare name `claude`, which
+# only resolves through the ~/bin shim, and a job-server driver does not
+# inherit this shell.
 env = {k: v for k, v in os.environ.items()
        if k.startswith("SPARSECRAFT_") or k in (
+           "PATH",
            "GEMINI_API_KEY", "GOOGLE_API_KEY", "OPENAI_API_KEY",
            "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY", "GROQ_API_KEY",
            "GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_LOCATION",

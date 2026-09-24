@@ -9,11 +9,17 @@ credentials are wired. **T3 synthesis is no longer deferred** -- see below.
 
 ## Quick start
 
-Two commands. One of them is getting a key.
+One command, and no key: the default backend is Claude Code, which uses the
+login already on the host.
 
 ```bash
-export GEMINI_API_KEY=...      # https://aistudio.google.com/apikey
 ./run.sh --iters 5
+```
+
+If `claude` has never been logged in here, that is the one setup step:
+
+```bash
+claude            # once, interactively
 ```
 
 `run.sh` checks the model is reachable, checks the toolchain is reachable,
@@ -24,20 +30,27 @@ can be known cheaply is left until then.
 
 ```bash
 ./run.sh --iters 20 --synth      # overnight, scored on MEASURED area and Fmax
-./run.sh --backend anthropic     # any provider; see below
+./run.sh --cache                 # reuse exact-hash results; see below
+./run.sh --backend gemini        # any provider; see below
 ./run.sh --skip-llm              # harness only, no model at all
 ```
 
 ### The model
 
-Any OpenAI-compatible provider works, because CHIA's `OpenAICompatLLM` drives
-the agentic tool loop itself and the provider is just a `base_url` plus a key.
+Two shapes of backend, and the difference is who drives the agentic loop.
+
+`claude` hands the whole turn to **Claude Code**, which plans, calls the MCP
+tools, reads the results and tries again on its own; one `prompt()` is one
+complete agentic session. Every other backend is a chat completion endpoint,
+and CHIA drives the tool loop around it.
 
 | backend | credential | note |
 |---|---|---|
-| `gemini` *(default)* | `GEMINI_API_KEY` | Google AI Studio key, OpenAI-compatible endpoint. Lowest setup. |
+| `claude` *(default)* | the `claude` CLI's own login | Claude Code as the agent, `claude-opus-5`. No key, no cloud project. Uses the OAuth login in `~/.claude/.credentials.json` -- so it spends **subscription usage**, not GCP credits and not an API key. `ANTHROPIC_API_KEY`, if exported, silently takes precedence and bills the API account instead. |
+| `gemini` | `GEMINI_API_KEY` | Google AI Studio key, OpenAI-compatible endpoint. Lowest setup of the key-based ones. |
 | `vertex` | `GOOGLE_CLOUD_PROJECT` + ADC | Bills to GCP credits. Needs `gcloud auth application-default login`. |
-| `anthropic` | `ANTHROPIC_API_KEY` | |
+| `claude_api` | `ANTHROPIC_API_KEY` | Same model through the Anthropic SDK instead of the CLI. CHIA marks its api path experimental; here as a fallback for when the CLI is what is broken. |
+| `anthropic` | `ANTHROPIC_API_KEY` | Claude via the OpenAI-compatibility shim. |
 | `openai` | `OPENAI_API_KEY` | |
 | `openrouter` | `OPENROUTER_API_KEY` | |
 | `groq` | `GROQ_API_KEY` | |
@@ -51,15 +64,60 @@ python check_llm.py            # actually call the configured one
 
 **The agentic turn runs natively on the head, not in a container.** An API-key
 backend is an HTTPS client; it needs `openai`/`google-genai`, which are in
-`chia_env` and not in the EDA images. So `cluster.yaml` advertises the `llm`
-resource on `head_local`. The consequence is the nice one: there are no
-credentials to mount into any container and no image to rebuild when a key
-changes. The model's only *write* path is unchanged -- still a `BashTool`
-pinned to the chipyard bundle.
+`chia_env` and not in the EDA images. The `claude` backend is not even that --
+it execs the `claude` binary and reads a login from `~/.claude/`, neither of
+which exists in any EDA image. So `cluster.yaml` advertises the `llm` resource
+on `head_local`. The consequence is the nice one: there are no credentials to
+mount into any container and no image to rebuild when a key changes. The
+model's only *write* path is unchanged -- still a `BashTool` pinned to the
+chipyard bundle.
 
-The key is read on the driver by `agent.make_llm` and travels inside the
-constructed object. It is never put in a `runtime_env`, which Ray logs and
-echoes back in job metadata.
+For the key-based backends the key is read on the driver by `agent.make_llm`
+and travels inside the constructed object. It is never put in a `runtime_env`,
+which Ray logs and echoes back in job metadata. The `claude` backend carries no
+secret at all: the CLI authenticates itself, on the worker.
+
+**Claude Code is sealed down to the same tool surface as the other arms.**
+Left alone it would arrive with its own Read/Write/Bash tools, running on the
+HEAD with `--dangerously-skip-permissions` -- i.e. on the same filesystem as
+`loop.py`, `metrics.py` and `t1_model.py`, which are in `IMMUTABLE_FILES`
+precisely because a metric the agent can edit is a metric it can fake. So
+`agent.py` passes `--tools ""` (no built-in tools at all), plus
+`--strict-mcp-config`, `--setting-sources ""` and `--disable-slash-commands`.
+What is left is exactly the MCP tools CHIA passes in -- the editor `BashTool`
+in the chipyard container and the two sealed read-only side channels -- which
+is what makes the `claude` arm comparable to the `gemini` one.
+
+| env var | default | |
+|---|---|---|
+| `SPARSECRAFT_CLAUDE_EFFORT` | `xhigh` | `low`/`medium`/`high`/`xhigh`/`max`. Wall clock, not tokens, is the binding constraint here: a proposal costs cents to generate and 20-40 min to elaborate. |
+| `SPARSECRAFT_CLAUDE_BIN` | newest VS Code extension binary | what `~/bin/claude` execs. |
+| `SPARSECRAFT_CLAUDE_FALLBACK_MODEL` | *(off)* | Off on purpose: it keeps an unattended run alive by silently running part of an arm on a different model. |
+| `SPARSECRAFT_CLAUDE_BUILTIN_TOOLS` | *(off)* | Hands the built-in toolset back. Debugging only -- it un-seals the scorer, so never set it for a scored run. |
+| `SPARSECRAFT_RATE_LIMIT_MAX_WAIT_S` | `21600` | A subscription usage limit is waited out around the agentic call (`loop.agent_turn`) rather than failing the iteration -- otherwise one limit at iteration 6 burns iterations 7-20 in seconds. |
+
+### The cache is off by default
+
+`--cache` turns on reuse of previously computed `elaborate` / `build_kernel` /
+`simulate` / `synthesize_recipe` results. It is **off** by default: every node
+is recomputed, and nothing is ever served from a `.pkl` an earlier run wrote.
+
+This is not about correctness. The cache is content-addressed -- a hit needs an
+identical `hw_hash`, `rtl_digest` and `sw_hash` -- so it *cannot* serve a stale
+result for a design the agent just invented. The moment the agent changes
+anything, all three keys change and the work is recomputed. That was already
+true under `bypass_cache.yaml`.
+
+What the default changes is the **baseline**, which is byte-identical run to
+run and used to be a seconds-long hit. Recomputing it costs 20-40 minutes per
+run and buys one property: every number in the run came from a tool that
+actually executed during that run, so the result is re-derivable from the tree
+alone rather than from an artifact of an earlier run. Turn `--cache` back on
+when you are iterating on the harness and the wall clock matters more than
+that.
+
+The write path stays on either way, so flipping back to `--cache` does not
+start from an empty cache.
 
 ### Checking it works, cheapest first
 

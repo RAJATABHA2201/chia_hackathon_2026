@@ -6,7 +6,8 @@
 #   elaborate      -> hw:<hw_hash>
 #   build_kernel   -> sw:<sw_hash>
 #   simulate       -> sim:<sw_hash>
-#   synthesize     -> syn:<hw_hash>@<tech>@<clock_ns>
+#   synthesize_recipe -> synr:<hw_hash>@<tech>@<clock_ns>
+#   netlist_digest    -> net:<the elaborate tag>
 #
 # Elaboration carries TWO tag families, not one. `hw:` is a simulator-only
 # build; `hwsrc:` is the same build with collect_generated_src and chipyard's
@@ -32,9 +33,24 @@ cache:
   simulate:
     cache: true
     tags: ["sim:.*"]
-  synthesize:
+  synthesize_recipe:
     cache: true
-    tags: ["syn:.*"]
+    tags: ["synr:.*"]
+  # N12b. MUST be registered, and the reason is subtle: netlist_digest reads
+  # gen-collateral/ off DISK, and an `elaborate` cache HIT does not rewrite that
+  # directory -- so an unregistered netlist_digest re-globs whatever elaborated
+  # LAST and reports the previous design's hardware. Sharing elaborate's tag is
+  # what makes the digest travel with the artifact. loop.py has passed
+  # `_chia_tag=f"net:{hw_tag}"` for exactly this all along; without the entry
+  # below the tag did nothing, because chia/base/bypass.py:325 silently treats
+  # an unregistered node as never-bypassed.
+  #
+  # Measured 2026-09-23: the SAME baseline design reported netlist
+  # a64e2c09c3b4ebcc under cache (stale) and 6f3c5995546620a3 when genuinely
+  # elaborated. The check was reporting on hardware that was never built.
+  netlist_digest:
+    cache: true
+    tags: ["net:.*"]
 
 bypass:
   elaborate:
@@ -46,6 +62,9 @@ bypass:
   simulate:
     bypass: true
     tags: ["sim:.*"]
-  synthesize:
+  synthesize_recipe:
     bypass: true
-    tags: ["syn:.*"]
+    tags: ["synr:.*"]
+  netlist_digest:
+    bypass: true
+    tags: ["net:.*"]

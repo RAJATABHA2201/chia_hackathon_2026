@@ -34,6 +34,8 @@ POINTS = [
     ("jag-b2",     "B2  + T-A zero-gated MAC",            "HW",    "hand",      "operand isolation in PE.scala; energy only, cycles unchanged by design"),
     ("cd-xres",    "B3  + X-resident scratchpad",         "SW",    "Claude",    "X held resident instead of re-fetched 117x; 12.5% of scratchpad"),
     ("cd-xres-gate","B4  = B3 + T-A gating",              "HW+SW", "Claude",    "software schedule and RTL gating combined"),
+    ("abl-bblocks1","B4' b_blocks=1 alone (from B1)",      "SW",    "random arm","ablation: reproduces the random arm's ENTIRE win at zero area cost"),
+    ("cd-best",    "B5  = B4 + b_blocks=1",                "HW+SW", "combined",  "best measured point; no arm found it"),
 ]
 
 # Measured points that did NOT improve. Reported because a results table showing
@@ -43,6 +45,17 @@ NEGATIVE = [
     ("cd-b4",      "b_blocks 0 -> 4",        "SW", "flat: auto already selects the maximum legal width"),
     ("tb-counter", "T-B zero-granule skip",  "HW", "~neutral; the measuring counter perturbed the design more than the technique did"),
 ]
+
+
+def _inv_edap(d, e):
+    """1 / (energy * delay * area), scaled. The latency-aware companion."""
+    uj = (e.get("energy_pj") or 0) / 1e6
+    gops, area = e.get("perf_gops") or 0, (d.get("area_um2") or 0) / 1e6
+    upo = e.get("energy_per_useful_op_pj") or 0
+    if not (uj and gops and area and upo):
+        return 0.0
+    t_us = ((e.get("energy_pj") / upo) / (gops * 1e9)) * 1e6
+    return 1e5 / (uj * t_us * area)
 
 
 def load(run):
@@ -66,8 +79,23 @@ def vals(run):
         cycles=m.get("cycles"),
         off=(c.get("RDMA_BYTES_REC", 0) or 0) + (c.get("WDMA_BYTES_SENT", 0) or 0),
         uj=(e.get("energy_pj") or 0) / 1e6,
-        pw=e.get("perf_per_watt_gops_w") or 0,
+        gops=e.get("perf_gops") or 0,
+        watt=e.get("power_w") or 0,
         area=(d.get("area_um2") or 0) / 1e6,
+        # PRIMARY METRIC (2026-09-21): Perf/(Area*Power), GOPS/(mm2*W). It
+        # replaces bare perf/W, which ignored area -- so a design could buy
+        # efficiency with silicon it never used and the headline would not
+        # notice. The random arm did exactly that (+12.3% area, zero benefit)
+        # and perf/W scored it identical to the ablated point that cost nothing.
+        #
+        # Note it is still blind to LATENCY: Power = Energy/Time, so the time in
+        # Perf cancels the time in Power and this reduces to useful_ops/(A*E).
+        # 1/EDAP is carried beside it because it is the only column here that
+        # responds to a cycle win.
+        ppa=((e.get("perf_gops") or 0) /
+             (((d.get("area_um2") or 0) / 1e6) * (e.get("power_w") or 1))
+             if d.get("area_um2") and e.get("power_w") else 0),
+        edap=_inv_edap(d, e),
         # T3_* means real yosys/OpenSTA synthesis; T1_MODEL means the analytical
         # predictor. Mixing the two in one column silently compares a measured
         # number against a modelled one, so the source travels with the value.
@@ -103,20 +131,26 @@ def main():
 
     base = vals("jag-b0")
     b1 = vals("cd-base2")
+    if b1 is None:
+        raise SystemExit("cd-base2 (B1) is the ratio baseline and is missing")
 
     # ---- main results table -------------------------------------------------
     S.append(Paragraph("Design points", h2))
     head = ["design point", "layer", "by", "cycles", "off-chip B", "energy uJ",
-            "perf/W", "area mm2", "area src", "vs B0"]
+            "power W", "area mm2", "Perf/(A*W)", "1/EDAP", "area src", "vs B1"]
     rows = [head]
     for run, label, layer, who, _note in POINTS:
         v = vals(run)
         if v is None:
             rows.append([label, layer, who, "pending", "", "", "", "", "", ""])
             continue
-        vs = f"{v['pw']/base['pw']:.2f}x" if base and base["pw"] else ""
+        # Ratios are against B1, the tuned sparse baseline, NOT B0: B0's area
+        # is modelled, and area is now in the metric's denominator, so a B0
+        # ratio would be part measurement and part model.
+        vs = f"{v['ppa']/b1['ppa']:.2f}x" if b1 and b1["ppa"] else ""
         rows.append([label, layer, who, f"{v['cycles']:,}", f"{v['off']:,}",
-                     f"{v['uj']:.2f}", f"{v['pw']:.2f}", f"{v['area']:.3f}",
+                     f"{v['uj']:.2f}", f"{v['watt']:.4f}", f"{v['area']:.3f}",
+                     f"{v['ppa']:.3f}", f"{v['edap']:.2f}",
                      v['asrc'], vs])
     t = Table(rows, repeatRows=1, hAlign="LEFT")
     t.setStyle(TableStyle([
@@ -134,34 +168,49 @@ def main():
     S.append(Paragraph("&quot;by&quot; records who proposed the change: no design point in this "
                        "table was discovered by the Gemini agent loop. "
                        "&quot;area src&quot; distinguishes real yosys/OpenSTA synthesis from the "
-                       "analytical predictor - B0/B1/B2 were measured before the synthesis recipe "
-                       "was fixed, so their areas are MODELLED and are not directly comparable "
-                       "with the synthesised figures. Cycles, DMA bytes and the equivalence "
-                       "verdict are measured throughout.", small))
+                       "analytical predictor - B0 and B2 were measured before the synthesis recipe "
+                       "was fixed, so their areas are MODELLED. This matters more than it used to: "
+                       "area is now in the DENOMINATOR of the primary metric, so a modelled area "
+                       "2.2x too low inflates the score 2.2x, and the modelled rows are excluded "
+                       "from the headline for that reason. Ratios are against B1, not B0. "
+                       "Cycles, DMA bytes and the equivalence verdict are measured throughout.", small))
 
     # ---- headline -----------------------------------------------------------
-    best_run, best = None, None
+    # Best is chosen on the primary metric, and only among points whose area was
+    # actually SYNTHESISED. Area sits in the metric's denominator now, so a
+    # modelled area that is 2.2x too low inflates the score by 2.2x -- B2's
+    # modelled 1.817 mm2 outscores every measured point while being strictly
+    # worse on cycles, traffic and energy.
+    best_run, best, best_label = None, None, ""
     for run, label, *_ in POINTS:
         v = vals(run)
-        if v and (best is None or v["pw"] > best["pw"]):
+        if v and v["asrc"] == "measured" and (best is None or v["ppa"] > best["ppa"]):
             best_run, best, best_label = run, v, label
-    if best and base:
+    if best and b1:
         S.append(Paragraph("Headline", h2))
         S.append(Paragraph(
-            f"<b>{best['pw']:.2f} GOPS/W</b>, against <b>{base['pw']:.2f}</b> for stock Gemmini: "
-            f"<b>{best['pw']/base['pw']:.2f}x perf/W</b>. "
-            f"Cycles {base['cycles']:,} -&gt; {best['cycles']:,} ({base['cycles']/best['cycles']:.2f}x), "
-            f"off-chip traffic {base['off']:,} -&gt; {best['off']:,} B "
-            f"({base['off']/best['off']:.2f}x), "
-            f"energy {base['uj']:.2f} -&gt; {best['uj']:.2f} uJ ({base['uj']/best['uj']:.2f}x). "
+            f"<b>{best['ppa']:.3f} GOPS/(mm2&middot;W)</b> for {best_label}, against "
+            f"<b>{b1['ppa']:.3f}</b> for the tuned sparse baseline B1: "
+            f"<b>{best['ppa']/b1['ppa']:.2f}x</b> on Perf/(Area&middot;Power). "
+            f"Cycles {b1['cycles']:,} -&gt; {best['cycles']:,} ({b1['cycles']/best['cycles']:.2f}x), "
+            f"off-chip traffic {b1['off']:,} -&gt; {best['off']:,} B "
+            f"({b1['off']/best['off']:.2f}x), "
+            f"energy {b1['uj']:.2f} -&gt; {best['uj']:.2f} uJ ({b1['uj']/best['uj']:.2f}x), "
+            f"area {b1['area']:.3f} -&gt; {best['area']:.3f} mm2 "
+            f"(+{100*(best['area']-b1['area'])/b1['area']:.1f}%). "
             f"Equivalence checked against a host-computed golden on every point: 0 mismatches.", body))
-        if b1:
-            S.append(Paragraph(
-                f"Against the tuned software baseline B1, the best point is "
-                f"<b>{best['pw']/b1['pw']:.3f}x</b> perf/W and "
-                f"<b>{b1['uj']/best['uj']:.3f}x</b> energy. Both are synthesised, and the "
-                f"software half of the gain (B1 -&gt; B3) costs no silicon at all: "
-                f"{b1['area']:.3f} mm2 unchanged.", body))
+        S.append(Paragraph(
+            f"On <b>1/EDAP</b> -- 1/(energy&middot;delay&middot;area), the one metric here that "
+            f"responds to a cycle win -- the same point is "
+            f"<b>{best['edap']/b1['edap']:.2f}x</b> over B1.", body))
+        S.append(Paragraph(
+            "<b>Metric note.</b> Perf/(Area&middot;Power) replaces bare perf/W, which ignored "
+            "area entirely and so could not charge a design for silicon it never used. "
+            "It is not, however, a full PPA metric: because Power = Energy/Time, the time in "
+            "Perf cancels the time in Power and the expression reduces to useful_ops/(Area&middot;Energy). "
+            "A pure latency improvement scores zero on it. Cycles are therefore reported as their "
+            "own column, and 1/EDAP is given as the latency-aware companion. Area is measured "
+            "(yosys/OpenSTA); power is modelled, and its SRAM term is known to be over-charged.", small))
 
     # ---- negatives ----------------------------------------------------------
     S.append(Paragraph("Measured and rejected", h2))

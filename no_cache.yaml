@@ -1,0 +1,51 @@
+# Everything recomputed, nothing ever reused. The counterpart to
+# bypass_cache.yaml, selected by `loop.py --no-cache` (the DEFAULT; pass
+# `--cache` for the fast-forwarding behaviour).
+#
+# WHY THIS IS THE DEFAULT, given the cache is content-addressed and provably
+# cannot serve a stale result for a new design: a study run is evidence, and
+# evidence that depends on a `.pkl` written by an earlier run is evidence
+# nobody can re-derive from the tree alone. Every number in a run made this way
+# came from a tool that actually executed during that run. That is worth the
+# wall clock.
+#
+# What it costs: the baseline chain (elaborate + build_kernel + simulate) is
+# recomputed every run instead of being a seconds-long hit -- 20-40 minutes,
+# for numbers that are deterministic and provably identical (verified
+# 2026-09-23: netlist a64e2c09c3b4ebcc and cycles 106,650 reproduced exactly
+# from cache and from scratch). Only the agent's own proposals were ever
+# computed fresh under bypass_cache.yaml; this extends that to the baseline.
+#
+# `cache:` (the WRITE path) is left ON. Writing costs disk and nothing else,
+# it keeps the artifacts for post-hoc inspection, and it means flipping back to
+# bypass_cache.yaml does not start from an empty cache. `bypass:` (the READ
+# path) is what turns a hit into a served result, and that is what is off here
+# -- see the header of bypass_cache.yaml.
+
+cache:
+  elaborate:
+    cache: true
+    tags: ["hw:.*", "hwsrc:.*"]
+  build_kernel:
+    cache: true
+    tags: ["sw:.*"]
+  simulate:
+    cache: true
+    tags: ["sim:.*"]
+  synthesize_recipe:
+    cache: true
+    tags: ["synr:.*"]
+
+bypass:
+  elaborate:
+    bypass: false
+    tags: ["hw:.*", "hwsrc:.*"]
+  build_kernel:
+    bypass: false
+    tags: ["sw:.*"]
+  simulate:
+    bypass: false
+    tags: ["sim:.*"]
+  synthesize_recipe:
+    bypass: false
+    tags: ["synr:.*"]

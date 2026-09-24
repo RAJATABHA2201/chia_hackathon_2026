@@ -104,11 +104,62 @@ PROVIDERS: dict[str, dict] = {
         "needs": "openai",
         "get_key": "https://platform.openai.com/api-keys",
     },
+    # Claude Code as the agent. Structurally DIFFERENT from every other entry
+    # here and the difference is the whole point: the others hand CHIA a chat
+    # completion and let CHIA drive the tool loop; this one hands the turn to
+    # an agent that drives its own loop -- plans, calls the MCP tools, reads
+    # what came back, tries again -- and returns only when it is finished. One
+    # `prompt()` is one complete agentic session, not one message.
+    #
+    # Authenticates itself: the CLI reads the OAuth login in
+    # ~/.claude/.credentials.json, or ANTHROPIC_API_KEY if one is exported
+    # (a key, if present, WINS over the OAuth login). So unlike every other
+    # backend, nothing is read by this process and nothing travels in the
+    # constructed object -- see the note in make_llm.
+    #
+    # `needs` is None because there is no python package to import: the
+    # requirement is the `claude` BINARY on the PATH of whichever worker
+    # serves the call. That is ~/bin/claude, and `llm` is advertised on the
+    # native head pool, so the shim on this host's PATH is the one that runs.
+    "claude": {
+        "kind": "claude_cli",
+        "base_url": None,
+        "env": ("ANTHROPIC_API_KEY",),
+        "default_model": "claude-opus-5",
+        "needs": None,
+        # A CLI session is an agentic session, not a single completion: it can
+        # spend twenty minutes reading the tree through the BashTool before it
+        # writes anything. 900s (the default the other backends use) is a
+        # timeout that fires MID-TASK and then burns two more retries doing the
+        # same thing again, so this one gets its own, longer budget.
+        "timeout": 2400,
+        "get_key": "run `claude` once interactively to log in, or export "
+                   "ANTHROPIC_API_KEY",
+    },
+    # The same model through the Anthropic SDK instead of the CLI: CHIA drives
+    # the tool loop, as with every other backend. Here as the fallback for when
+    # the CLI is the thing that is broken -- it isolates "the model is
+    # unreachable" from "the CLI is misconfigured". CHIA warns on construction
+    # that its api backend is unit-tested but not production-exercised, so it
+    # is not the default.
+    "claude_api": {
+        "kind": "claude_api",
+        "base_url": None,
+        "env": ("ANTHROPIC_API_KEY",),
+        "default_model": "claude-opus-5",
+        "needs": "anthropic",
+        "timeout": 1800,
+        "get_key": "https://console.anthropic.com/settings/keys",
+    },
+    # Claude through Anthropic's OpenAI-compatibility shim. Third path to the
+    # same model, and the least good one -- the shim is a translation layer
+    # that does not carry thinking blocks -- but it reuses the openai_compat
+    # code path that every other provider here is already proven on.
     "anthropic": {
         "kind": "openai_compat",
         "base_url": "https://api.anthropic.com/v1/",
         "env": ("ANTHROPIC_API_KEY",),
-        "default_model": "claude-sonnet-5",
+        "default_model": "claude-opus-5",
         "needs": "openai",
         "get_key": "https://console.anthropic.com/settings/keys",
     },
@@ -153,7 +204,12 @@ PROVIDERS: dict[str, dict] = {
     },
 }
 
-DEFAULT_BACKEND = "gemini"
+# Claude Code, because it is the only backend here that is an AGENT rather than
+# a completion endpoint, and the loop's task -- read a Chisel tree, change it,
+# see what the compile gate says, change it again -- is agentic. Switch with
+# --backend or SPARSECRAFT_LLM_BACKEND; `gemini` is what this defaulted to
+# before and still works unchanged.
+DEFAULT_BACKEND = "claude"
 
 LLM_BACKEND = os.environ.get("SPARSECRAFT_LLM_BACKEND", DEFAULT_BACKEND)
 LLM_MODEL = os.environ.get("SPARSECRAFT_LLM_MODEL", "")
@@ -195,6 +251,103 @@ def model_name(backend: str | None = None) -> str:
     return LLM_MODEL or spec["default_model"]
 
 
+# --------------------------------------------------------------------------
+# Claude Code specifics.
+#
+# The CLI arrives with a whole environment of its own -- built-in Read/Write/
+# Bash tools, the user's MCP servers, ~/.claude/settings.json, CLAUDE.md,
+# skills. None of that is wanted here and one part of it is actively
+# dangerous, so the flags below take it all away.
+#
+# `--tools ""` is the one that matters. Without it the agent gets Claude
+# Code's OWN Bash and Edit tools, which run on the HEAD node with
+# --dangerously-skip-permissions -- i.e. on the same filesystem as loop.py,
+# metrics.py and t1_model.py. Those are in IMMUTABLE_FILES precisely because a
+# metric the agent can edit is a metric it can fake, and an agent that can
+# rewrite the scorer is not measuring anything. `--tools ""` removes every
+# built-in tool, leaving exactly the MCP tools CHIA passes in: the BashTool
+# pinned to the chipyard container, plus the sealed read-only status/history
+# side channels. That is the SAME tool surface the gemini and vertex arms get,
+# which is also what makes the arms comparable.
+#
+# The rest close smaller leaks: --strict-mcp-config drops the developer's
+# personal MCP servers, --setting-sources "" drops user/project settings (so a
+# stray `model` or `effort` in ~/.claude/settings.json cannot silently change
+# the arm mid-study), --disable-slash-commands drops skills.
+# --------------------------------------------------------------------------
+CLAUDE_SEALED_ARGS = ["--tools", "",
+                     "--strict-mcp-config",
+                     "--setting-sources", "",
+                     "--disable-slash-commands"]
+
+
+def claude_cli_args() -> list[str]:
+    """Extra `claude` CLI flags, assembled from the environment."""
+    args: list[str] = []
+    # SPARSECRAFT_CLAUDE_BUILTIN_TOOLS=1 hands the built-in toolset back. It
+    # exists for debugging the harness, NOT for running an arm: it changes what
+    # the agent can reach, so a run made with it is not comparable to one
+    # without, and it un-seals the scorer. Never set it for a scored run.
+    if os.environ.get("SPARSECRAFT_CLAUDE_BUILTIN_TOOLS", "") not in ("1", "true", "yes"):
+        args += CLAUDE_SEALED_ARGS
+
+    # xhigh: the binding constraint in this loop is wall clock, not tokens --
+    # a proposal costs cents to generate and 20-40 minutes to elaborate, so
+    # thinking harder before proposing is close to free. Levels: low, medium,
+    # high, xhigh, max.
+    effort = os.environ.get("SPARSECRAFT_CLAUDE_EFFORT", "xhigh").strip()
+    if effort:
+        args += ["--effort", effort]
+
+    # Both OFF by default and both deliberately so.
+    #
+    # A fallback model would keep an unattended overnight run alive when Opus
+    # is overloaded -- by silently running part of the arm on a DIFFERENT
+    # model, which is exactly the kind of un-recorded variable that makes a
+    # result unpublishable. Set it only for a run whose results you will not
+    # compare against another arm.
+    fallback = os.environ.get("SPARSECRAFT_CLAUDE_FALLBACK_MODEL", "").strip()
+    if fallback:
+        args += ["--fallback-model", fallback]
+
+    # A dollar cap applies to API-key billing only; on an OAuth login the limit
+    # is a rate limit, not a budget, and this does nothing.
+    budget = os.environ.get("SPARSECRAFT_CLAUDE_MAX_BUDGET_USD", "").strip()
+    if budget:
+        args += ["--max-budget-usd", budget]
+
+    return args
+
+
+def claude_cli_status() -> dict:
+    """Is the `claude` CLI present, and how would it authenticate?
+
+    Both halves are needed and they fail differently: no binary is a PATH
+    problem on this host, no credential is a login the operator has to do
+    interactively. Reported separately so the preflight can say which.
+    """
+    import json as _json
+    import shutil
+
+    exe = shutil.which("claude")
+
+    # ANTHROPIC_API_KEY WINS over the stored OAuth login, so it is checked
+    # first -- reporting "oauth" while the CLI will actually bill an API key is
+    # the sort of preflight that is worse than none.
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        auth, detail = "api_key", "ANTHROPIC_API_KEY is set (takes precedence over any login)"
+    else:
+        creds = Path.home() / ".claude" / ".credentials.json"
+        try:
+            blob = _json.loads(creds.read_text()).get("claudeAiOauth") or {}
+            plan = blob.get("subscriptionType") or "unknown plan"
+            auth, detail = "oauth", f"logged in ({plan}), {creds}"
+        except (FileNotFoundError, ValueError, AttributeError):
+            auth, detail = None, f"no ANTHROPIC_API_KEY and no usable login in {creds}"
+
+    return {"exe": exe, "auth": auth, "auth_detail": detail}
+
+
 def describe(backend: str | None = None) -> dict:
     """Everything the preflight needs to say whether this backend will work."""
     import importlib.util
@@ -205,7 +358,7 @@ def describe(backend: str | None = None) -> dict:
         has_pkg = needs is None or importlib.util.find_spec(needs) is not None
     except (ImportError, ValueError):
         has_pkg = False
-    return {
+    info = {
         "backend": name,
         "kind": spec["kind"],
         "model": model_name(name),
@@ -222,6 +375,16 @@ def describe(backend: str | None = None) -> dict:
                       or spec["kind"] == "opencode"
                       or (name == "custom" and spec["base_url"])) and has_pkg,
     }
+    if spec["kind"] == "claude_cli":
+        # Readiness here is NOT "is there a key": the CLI authenticates itself
+        # and an unset ANTHROPIC_API_KEY is the normal, working case. It is
+        # "is the binary reachable and is it logged in".
+        cli = claude_cli_status()
+        info.update(cli)
+        info["credential_var"] = var or ("(oauth login)" if cli["auth"] else None)
+        info["credential_present"] = bool(cli["auth"])
+        info["ready"] = bool(cli["exe"] and cli["auth"])
+    return info
 
 
 def load_prompt(prompt_file: str, **values: object) -> str:
@@ -285,8 +448,13 @@ def make_llm(system_prompt_file: str, backend: str | None = None,
     chosen_model = model or model_name(name)
     var, key = credential(name)
 
+    # 900s unless the provider asks for longer; SPARSECRAFT_LLM_TIMEOUT wins
+    # over both. An agentic backend needs a bigger budget than a completion
+    # one -- see the "timeout" note on the claude provider.
+    timeout = int(os.environ.get("SPARSECRAFT_LLM_TIMEOUT") or spec.get("timeout", 900))
+
     common = dict(model=chosen_model, system_message=system_message,
-                  timeout_seconds=900, retries=3)
+                  timeout_seconds=timeout, retries=3)
     if log_dir:
         common["log_dir"] = log_dir
 
@@ -307,6 +475,68 @@ def make_llm(system_prompt_file: str, backend: str | None = None,
     if spec["kind"] == "vertex":
         from chia.models.vertex import VertexGeminiLLM
         return VertexGeminiLLM(logging_name="sparsecraft_vertex", **common)
+
+    if spec["kind"] == "claude_cli":
+        # NOTE the credential is deliberately NOT passed and NOT read. Every
+        # other backend here reads its key on the driver and carries it inside
+        # the constructed object through Ray's object store; the CLI instead
+        # authenticates itself, on the worker, from ~/.claude/.credentials.json
+        # (or ANTHROPIC_API_KEY if the operator exported one). So this is the
+        # one backend where no secret rides the object store at all. `llm` is
+        # advertised on the native head pool, which is the only place that file
+        # exists, so the call lands where the login is.
+        cli = claude_cli_status()
+        if not cli["exe"]:
+            raise RuntimeError(
+                "backend 'claude' needs the `claude` CLI on PATH and it is not "
+                "there. On this host that is ~/bin/claude (a shim onto the VS "
+                "Code extension's binary); make sure ~/bin is on PATH, or set "
+                "SPARSECRAFT_CLAUDE_BIN to a Claude Code binary.")
+        if not cli["auth"]:
+            raise RuntimeError(
+                f"backend 'claude' found the CLI at {cli['exe']} but no "
+                f"credential: {cli['auth_detail']}. {spec['get_key']}")
+
+        from chia.models.claude import ClaudeCodeLLM
+        return ClaudeCodeLLM(
+            backend="cli",
+            logging_name="sparsecraft_claude",
+            # One prompt() is one COMPLETE agentic session -- the agent's own
+            # turns happen inside the CLI and never come back here -- so there
+            # is no conversation for the loop to resume. Leaving this False
+            # also switches off claude.py's cross-worker transcript shuttling,
+            # which only exists to make --resume work.
+            resume_session=False,
+            # Only read when resuming. Its default points at a path inside the
+            # CHIA container images (/home/ray/...), which does not exist on
+            # this native head; None makes it derive from the cwd instead, so a
+            # future resume_session=True does not silently write nowhere.
+            projects_cwd=None,
+            # The MCP tools ARE the sandbox: the only write path is a BashTool
+            # pinned to the build container. Prompting for permission on each
+            # of them would deadlock an unattended run, and there is nothing
+            # left to protect once --tools "" has removed the built-ins.
+            dangerously_skip_permissions=True,
+            extra_cli_args=claude_cli_args(),
+            **common)
+
+    if spec["kind"] == "claude_api":
+        if not key:
+            raise RuntimeError(
+                "backend 'claude_api' needs ANTHROPIC_API_KEY (the CLI's OAuth "
+                "login does not apply to the SDK). Use --backend claude for the "
+                f"CLI instead. Get a key: {spec['get_key']}")
+        from chia.models.claude import ClaudeCodeLLM
+        return ClaudeCodeLLM(
+            backend="api",
+            api_key=key,
+            logging_name="sparsecraft_claude_api",
+            # Adaptive, not a token budget: budget_tokens is rejected outright
+            # by Opus 5. CHIA sends this straight through as
+            # thinking={"type": <this>}.
+            thinking="adaptive",
+            max_tokens=16000,
+            **common)
 
     if spec["kind"] == "opencode":
         from chia.models.opencode import OpenCodeLLM

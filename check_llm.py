@@ -68,6 +68,53 @@ def call_vertex(model: str, timeout: int) -> tuple[bool, str]:
         return False, f"{type(e).__name__}: {e}"
 
 
+def call_claude_cli(model: str, timeout: int) -> tuple[bool, str]:
+    """Run the real `claude` binary, with the real flags.
+
+    Deliberately not an SDK call: what this has to prove is that the BINARY is
+    on PATH, that it is logged in, and that it accepts the sealing flags the
+    loop passes -- a rejected flag is exit 1 with a usage message, and finding
+    that out here costs ten seconds instead of one elaboration.
+    """
+    import subprocess
+
+    cli = agent.claude_cli_status()
+    if not cli["exe"]:
+        return False, ("no `claude` on PATH. On this host that is ~/bin/claude; "
+                       "check that ~/bin is on PATH.")
+    if not cli["auth"]:
+        return False, cli["auth_detail"]
+
+    cmd = ([cli["exe"], "--print", "--model", model,
+            "--dangerously-skip-permissions"]
+           + agent.claude_cli_args() + ["-p", "-"])
+    try:
+        r = subprocess.run(cmd, input=PING, capture_output=True, text=True,
+                           timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return False, f"the CLI did not answer within {timeout}s"
+    if r.returncode != 0:
+        return False, (f"claude exited {r.returncode}: "
+                       f"{(r.stderr or r.stdout).strip()[:300]}")
+    return True, r.stdout.strip() or "(empty response)"
+
+
+def call_claude_api(model: str, key: str, timeout: int) -> tuple[bool, str]:
+    try:
+        import anthropic
+    except ImportError:
+        return False, ("the `anthropic` package is not installed in this "
+                       "environment. `pip install anthropic` inside chia_env.")
+    try:
+        client = anthropic.Anthropic(api_key=key, timeout=timeout)
+        r = client.messages.create(model=model, max_tokens=64,
+                                   messages=[{"role": "user", "content": PING}])
+        text = "".join(b.text for b in r.content if b.type == "text").strip()
+        return True, text or "(empty response)"
+    except Exception as e:                                   # noqa: BLE001
+        return False, f"{type(e).__name__}: {e}"
+
+
 def show_all() -> int:
     print(f"{'backend':<12} {'ready':<7} {'model':<26} credential")
     print("-" * 78)
@@ -114,8 +161,17 @@ def main() -> int:
     print(f"backend      {name}  ({spec['kind']})")
     print(f"model        {model}")
     print(f"endpoint     {spec['base_url'] or '(provider default)'}")
-    print(f"credential   {var or 'NOT SET'}"
-          + (f"  [{len(key)} chars, ...{key[-4:]}]" if key else ""))
+    if spec["kind"] == "claude_cli":
+        # "no env var set" is the NORMAL case here, so printing NOT SET would
+        # read as a failure when nothing is wrong. Report what the CLI will
+        # actually do instead.
+        cli = agent.claude_cli_status()
+        print(f"cli          {cli['exe'] or 'NOT ON PATH'}")
+        print(f"credential   {cli['auth'] or 'NONE'}  ({cli['auth_detail']})")
+        print(f"flags        {' '.join(agent.claude_cli_args()) or '(none)'}")
+    else:
+        print(f"credential   {var or 'NOT SET'}"
+              + (f"  [{len(key)} chars, ...{key[-4:]}]" if key else ""))
 
     # Readiness is agent.describe's call, not re-derived here. A local endpoint
     # that wants no key is ready without one, and duplicating that rule in two
@@ -126,6 +182,12 @@ def main() -> int:
         if not info["package_present"]:
             print(f"FAIL  the `{info['package']}` package is not importable "
                   f"in this environment.")
+        elif spec["kind"] == "claude_cli":
+            if not info.get("exe"):
+                print("FAIL  no `claude` on PATH. On this host that is "
+                      "~/bin/claude -- check that ~/bin is on PATH.")
+            else:
+                print(f"FAIL  {info['auth_detail']}")
         else:
             print(f"FAIL  no credential. Set one of: {', '.join(spec['env'])}")
         print(f"      {spec['get_key']}")
@@ -144,6 +206,12 @@ def main() -> int:
     print(f"calling {model} ...")
     if spec["kind"] == "vertex":
         ok, text = call_vertex(model, args.timeout)
+    elif spec["kind"] == "claude_cli":
+        # An agentic session is slow to start; --timeout 60 is not enough to
+        # judge it unreachable.
+        ok, text = call_claude_cli(model, max(args.timeout, 180))
+    elif spec["kind"] == "claude_api":
+        ok, text = call_claude_api(model, key, args.timeout)
     elif spec["kind"] == "openai_compat":
         # Same placeholder agent.make_llm uses: the SDK requires a non-empty
         # key, a keyless local server ignores whatever arrives.

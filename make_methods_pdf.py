@@ -38,7 +38,14 @@ def vals(run):
     return dict(cyc=m.get("cycles"),
                 off=(c.get("RDMA_BYTES_REC", 0) or 0) + (c.get("WDMA_BYTES_SENT", 0) or 0),
                 uj=(e.get("energy_pj") or 0) / 1e6,
-                pw=e.get("perf_per_watt_gops_w") or 0,
+                watt=e.get("power_w") or 0,
+                # PRIMARY METRIC (2026-09-21): Perf/(Area*Power), GOPS/(mm2*W).
+                # Replaces bare perf/W, which ignored area. Still blind to
+                # LATENCY -- Power = Energy/Time, so time cancels out of the
+                # ratio. Cycles are reported separately for that reason.
+                ppa=((e.get("perf_gops") or 0) /
+                     (((d.get("area_um2") or 0) / 1e6) * (e.get("power_w") or 1))
+                     if d.get("area_um2") and e.get("power_w") else 0),
                 area=(d.get("area_um2") or 0) / 1e6,
                 asrc=("measured" if str(d.get("area_source", "")).startswith("T3")
                       else "modelled"))
@@ -55,7 +62,9 @@ def agent_tally(run):
             m = d.get("metrics") or {}
             admitted.append((d.get("iteration"), m.get("cycles"),
                              round((e.get("energy_pj") or 0) / 1e6, 3),
-                             round(e.get("perf_per_watt_gops_w") or 0, 3)))
+                             round((e.get("perf_gops") or 0) /
+                                   max(((d.get("area_um2") or 0) / 1e6) *
+                                       (e.get("power_w") or 1), 1e-9), 3)))
     return out, admitted
 
 
@@ -256,27 +265,36 @@ def main():
            ("jag-b2", "+ T-A zero-gated MAC", "HW"),
            ("cd-xres", "+ X-resident scratchpad", "SW"),
            ("cd-xres-gate", "+ T-A and X-resident combined", "HW+SW")]
-    base = vals("jag-b0")
-    rows = [["design point", "layer", "cycles", "off-chip B", "energy uJ", "perf/W", "area mm2", "vs stock"]]
+    b1 = vals("cd-base2")
+    rows = [["design point", "layer", "cycles", "off-chip B", "energy uJ", "power W",
+             "area mm2", "Perf/(A*W)", "vs B1"]]
     for run, label, layer in pts:
         v = vals(run)
         if not v:
             continue
         rows.append([label, layer, f"{v['cyc']:,}", f"{v['off']:,}", f"{v['uj']:.2f}",
-                     f"{v['pw']:.2f}", f"{v['area']:.3f} ({v['asrc'][:4]})",
-                     f"{v['pw']/base['pw']:.2f}x" if base else ""])
+                     f"{v['watt']:.4f}", f"{v['area']:.3f} ({v['asrc'][:4]})",
+                     f"{v['ppa']:.3f}",
+                     f"{v['ppa']/b1['ppa']:.2f}x" if b1 and b1['ppa'] else ""])
     S.append(tbl(rows))
-    best = vals("cd-xres-gate")
-    if best and base:
+    best = vals("cd-best") or vals("cd-xres-gate")
+    if best and b1:
         S.append(Spacer(1, 3))
         S.append(Paragraph(
-            f"<b>{best['pw']:.2f} GOPS/W against {base['pw']:.2f} for stock Gemmini: "
-            f"{best['pw']/base['pw']:.2f}x perf/W.</b> Cycles {base['cyc']:,} -&gt; {best['cyc']:,} "
-            f"({base['cyc']/best['cyc']:.2f}x), off-chip {base['off']:,} -&gt; {best['off']:,} B "
-            f"({base['off']/best['off']:.2f}x), energy {base['uj']:.2f} -&gt; {best['uj']:.2f} uJ "
-            f"({base['uj']/best['uj']:.2f}x). Golden-equivalence: 0 mismatches at every point. "
-            f"Areas marked (meas) are synthesised; (mode) are from the analytical predictor and are "
-            f"not directly comparable.", body))
+            f"<b>{best['ppa']:.3f} GOPS/(mm2&middot;W) against {b1['ppa']:.3f} for the tuned sparse "
+            f"baseline B1: {best['ppa']/b1['ppa']:.2f}x on Perf/(Area&middot;Power).</b> "
+            f"Cycles {b1['cyc']:,} -&gt; {best['cyc']:,} "
+            f"({b1['cyc']/best['cyc']:.2f}x), off-chip {b1['off']:,} -&gt; {best['off']:,} B "
+            f"({b1['off']/best['off']:.2f}x), energy {b1['uj']:.2f} -&gt; {best['uj']:.2f} uJ "
+            f"({b1['uj']/best['uj']:.2f}x), area {b1['area']:.3f} -&gt; {best['area']:.3f} mm2. "
+            f"Golden-equivalence: 0 mismatches at every point.", body))
+        S.append(Paragraph(
+            "Ratios are against B1, not stock: B0's area is from the analytical predictor, and "
+            "area is in the denominator of this metric, so a B0 ratio would be part measurement "
+            "and part model. Areas marked (meas) are synthesised, (mode) predicted. Note also that "
+            "Perf/(Area&middot;Power) does not capture latency -- Power = Energy/Time, so the time in "
+            "Perf cancels the time in Power. Cycles are reported as their own column for that reason.",
+            body))
 
     # ---- sparsity sweep
     sweep = []
@@ -290,14 +308,15 @@ def main():
             "Same two configurations across a second matrix family. jagmesh7 is 0.72% dense with "
             "11.4% block occupancy (structured); the dnn family is 3.125% dense with 50% block "
             "occupancy. Baseline is the tuned software kernel; 'co-designed' is T-A plus X-resident.", body))
-        rows = [["workload", "block occ.", "baseline perf/W", "co-designed perf/W", "gain", "off-chip cut"]]
+        rows = [["workload", "block occ.", "baseline Perf/(A*W)", "co-designed Perf/(A*W)",
+                 "gain", "off-chip cut"]]
         j1, j4 = vals("cd-base2"), vals("cd-xres-gate")
         if j1 and j4:
-            rows.append(["jag512", "11.4%", f"{j1['pw']:.2f}", f"{j4['pw']:.2f}",
-                         f"{j4['pw']/j1['pw']:.3f}x", f"{j1['off']/j4['off']:.2f}x"])
-        for wl, b1, b4 in sweep:
-            rows.append([wl, "50%", f"{b1['pw']:.2f}", f"{b4['pw']:.2f}",
-                         f"{b4['pw']/b1['pw']:.3f}x", f"{b1['off']/b4['off']:.2f}x"])
+            rows.append(["jag512", "11.4%", f"{j1['ppa']:.3f}", f"{j4['ppa']:.3f}",
+                         f"{j4['ppa']/j1['ppa']:.3f}x", f"{j1['off']/j4['off']:.2f}x"])
+        for wl, s1, s4 in sweep:
+            rows.append([wl, "50%", f"{s1['ppa']:.3f}", f"{s4['ppa']:.3f}",
+                         f"{s4['ppa']/s1['ppa']:.3f}x", f"{s1['off']/s4['off']:.2f}x"])
         S.append(tbl(rows))
         S.append(Spacer(1, 3))
         S.append(Paragraph(

@@ -39,6 +39,13 @@ available_node_types:
     # (vertex_creds, openai_creds, ...). The loop overrides that with `llm` at
     # dispatch, but advertising them keeps a direct
     # `llm.prompt.chia_remote(...)` -- no .options() -- schedulable too.
+    #
+    # `claude_creds` (ClaudeCodeLLM.prompt's own default) is a HARDER
+    # constraint than the others, not just a naming convention. The Claude Code
+    # backend is not an HTTPS client: it execs the `claude` BINARY and reads
+    # the login in ~/.claude/.credentials.json. Both exist on this host and in
+    # none of the EDA images, so the agentic turn can only run on this native
+    # pool -- which is where `llm` already points it.
     # ---------------------------------------------------------------------
     # !! num_cpus BELOW IS CURRENTLY INERT -- CHIA DOES NOT READ IT. !!
     #
@@ -74,7 +81,8 @@ available_node_types:
     head_local:
         num_cpus: 4
         resources: {"head_local": 8, "llm": 2, "openai_creds": 2,
-                    "vertex_creds": 2, "anthropic_creds": 2}
+                    "vertex_creds": 2, "anthropic_creds": 2,
+                    "claude_creds": 2}
         num_workers: 1
         compatible_ips: ["${THIS_MACHINE}"]
         worker_env_commands:

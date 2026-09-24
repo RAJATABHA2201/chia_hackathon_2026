@@ -83,6 +83,21 @@ class RecipeResult:
     power_internal_w: float | None = None
     power_switching_w: float | None = None
     power_leakage_w: float | None = None
+    # PROVENANCE. A power number is meaningless without knowing what switching
+    # activity produced it, and the three sources differ by orders of
+    # magnitude in trustworthiness:
+    #   "vcd"      -- annotated from a real simulation trace of THIS workload
+    #   "measured" -- one global toggle rate derived from this run's counters
+    #   "default"  -- OpenSTA's built-in guess; design-specific but not
+    #                 workload-specific
+    # Recorded so a reader can never mistake one for another.
+    power_activity_source: str | None = None
+    power_activity: float | None = None
+    # [{mode, activity, total, internal, switching, leakage}] -- one entry per
+    # annotation scheme tried in the SAME STA session on the SAME netlist, so
+    # the numbers differ only by the activity assumption.
+    power_sweep: list | None = None
+    sta_tail: str = ""
     cone_files: int = 0
     staged_files: int = 0
     rewritten_files: int = 0
@@ -125,13 +140,43 @@ def _parse_power(text: str) -> dict:
     """Pull the Total row out of OpenSTA's report_power table.
 
     Columns are Internal / Switching / Leakage / Total, in watts.
+
+    ANCHORED on the table header, and sanity-checked, because the naive
+    version of this function ("any line starting with total that has four
+    numbers") silently matched a timing report and returned 630.0 W for every
+    design in a 15-iteration run -- design-invariant and three orders of
+    magnitude too large, with no error anywhere. A power parser that can
+    return a wrong number is worse than one that returns nothing, because the
+    wrong number gets published.
+
+    Returns {} unless the table header was seen AND the row parses AND the
+    components sum to the total.
     """
-    for line in text.splitlines():
-        if line.strip().lower().startswith("total"):
-            nums = re.findall(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", line)
-            if len(nums) >= 4:
-                return {"internal": float(nums[0]), "switching": float(nums[1]),
-                        "leakage": float(nums[2]), "total": float(nums[3])}
+    lines = text.splitlines()
+    header = None
+    for i, line in enumerate(lines):
+        low = line.lower()
+        if "internal" in low and "switching" in low and "leakage" in low:
+            header = i
+            break
+    if header is None:
+        return {}
+
+    for line in lines[header:]:
+        if not line.strip().lower().startswith("total"):
+            continue
+        nums = re.findall(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", line)
+        if len(nums) < 4:
+            continue
+        internal, switching, leakage, total = (float(n) for n in nums[:4])
+        if min(internal, switching, leakage, total) < 0:
+            return {}
+        # The three components must account for the total. A mis-locked row
+        # fails this immediately.
+        if total > 0 and abs((internal + switching + leakage) - total) > 0.02 * total:
+            return {}
+        return {"internal": internal, "switching": switching,
+                "leakage": leakage, "total": total}
     return {}
 
 
@@ -140,7 +185,10 @@ def synthesize_recipe(generated_src_files: dict,
                       top_module: str = "Gemmini",
                       clock_period_ns: float = 2.0,
                       liberty: str = NANGATE_LIB,
-                      timeout_seconds: int = SYNTH_TIMEOUT_S) -> RecipeResult:
+                      timeout_seconds: int = SYNTH_TIMEOUT_S,
+                      activity: float | None = None,
+                      vcd_path: str | None = None,
+                      activity_sweep: list | None = None) -> RecipeResult:
     """Synthesize the Gemmini tile and report area, timing and power."""
     r = RecipeResult(top_module=top_module, clock_target_ns=clock_period_ns)
     ensure_tool_path()
@@ -264,23 +312,117 @@ def synthesize_recipe(generated_src_files: dict,
      r.seq_cell_count, r.cells_by_type) = parse_synth_stat(proc.stdout)
 
     # --- timing + power, both off the mapped netlist -----------------------
+    #
+    # The clock lookup has FALLBACKS and that is not cosmetic. The previous
+    # script did `create_clock ... [get_ports clock]` bare: when no port of
+    # that exact name exists, OpenSTA errors and the script dies BEFORE
+    # report_checks and report_power ever run. The symptom is not an error in
+    # the result -- it is `worst_slack_ns = None`, `fmax = None`, and a power
+    # figure parsed out of whatever text happened to be on stdout. Measured
+    # 2026-09-23: four different netlists (2,102,526 to 2,140,427 cells) all
+    # reported power_total_w = 630.0, a number that is both design-invariant
+    # and ~3 orders of magnitude too large for a Gemmini tile.
+    #
+    # Activity annotation decides whether the power number means anything
+    # about THIS workload. Priority: a real VCD, else a measured global toggle
+    # rate, else OpenSTA's default. Whichever ran is recorded on the result.
+    # -input, NOT -global. This distinction is the whole correctness of the
+    # number. `-global` forces ONE toggle rate onto every net in the design;
+    # `-input` annotates the primary inputs and lets OpenSTA PROPAGATE through
+    # the logic, so internal nets get an activity derived from their gate
+    # functions and logic depth (and naturally decays with depth).
+    #
+    # Measured 2026-09-24, and this was my error: a global 0.307 -- which is
+    # the MAC ARRAY UTILISATION, a datapath figure -- applied to all 2,102,526
+    # nets gave 9.82 W, i.e. 4.08 W/mm^2 against a 0.1-0.5 W/mm^2 norm for this
+    # class of design. The utilisation number was fine; forcing it onto the
+    # control logic, DMA, TLB and clock tree was not.
+    sweep = list(activity_sweep) if activity_sweep else []
+    if not sweep:
+        if vcd_path and os.path.isfile(vcd_path):
+            sweep = [("vcd", None)]
+        elif activity is not None:
+            sweep = [("input", float(activity))]
+        else:
+            sweep = [("default", None)]
+
+    def _annot(mode, val):
+        if mode == "vcd":
+            return f"read_vcd {vcd_path}"
+        if mode == "input":
+            return f"set_power_activity -input -activity {val:.6f} -duty 0.5"
+        if mode == "global":
+            return f"set_power_activity -global -activity {val:.6f} -duty 0.5"
+        return "# default OpenSTA toggle rates"
+
+    activity_tcl = "\n".join(
+        f'puts "SPARSECRAFT_PWR_MODE {m} {v if v is not None else -1}"\n'
+        f'{_annot(m, v)}\nreport_power -digits 6' for m, v in sweep)
+    r.power_activity_source = sweep[0][0]
+    r.power_activity = sweep[0][1]
+
     sta_tcl = os.path.join(work, "sta.tcl")
     with open(sta_tcl, "w") as f:
         f.write(f"""\
 read_liberty {liberty}
 read_verilog {netlist}
 link_design {top_module}
-create_clock -name clk -period {clock_period_ns} [get_ports clock]
-report_checks -path_delay max
-report_power
+set clk_ports [get_ports -quiet clock]
+if {{ [llength $clk_ports] == 0 }} {{ set clk_ports [get_ports -quiet clk] }}
+if {{ [llength $clk_ports] == 0 }} {{ set clk_ports [get_ports -quiet clock_uncore] }}
+if {{ [llength $clk_ports] == 0 }} {{
+  create_clock -name core_clk -period {clock_period_ns}
+  puts "SPARSECRAFT_STA no clock port found; used a virtual clock"
+}} else {{
+  create_clock -name core_clk -period {clock_period_ns} $clk_ports
+  puts "SPARSECRAFT_STA clocked $clk_ports"
+}}
+set_propagated_clock [all_clocks]
+report_checks -path_delay max -digits 4
+report_worst_slack -max -digits 4
+{activity_tcl}
+exit
 """)
     sta = subprocess.run([_tool_path("sta"), "-no_init", "-exit", sta_tcl],
                          capture_output=True, text=True, timeout=timeout_seconds)
     sta_out = sta.stdout + sta.stderr
+    # Kept on disk AND on the result: a power number whose STA log has been
+    # thrown away cannot be audited later.
+    with open(os.path.join(work, "sta.log"), "w") as f:
+        f.write(sta_out)
+    r.sta_tail = sta_out[-4000:]
     r.worst_slack_ns = parse_worst_slack(sta_out)
     if r.worst_slack_ns is not None:
         achieved = clock_period_ns - r.worst_slack_ns
         r.fmax_mhz = 1000.0 / achieved if achieved > 0 else None
+    # Each mode printed a SPARSECRAFT_PWR_MODE marker before its own
+    # report_power table, so the sections split cleanly and every number is
+    # attributable to the annotation that produced it.
+    r.power_sweep = []
+    if "SPARSECRAFT_PWR_MODE" in sta_out:
+        chunks = sta_out.split("SPARSECRAFT_PWR_MODE ")[1:]
+        for ch in chunks:
+            head, _, body = ch.partition("\n")
+            bits = head.split()
+            mode = bits[0] if bits else "?"
+            try:
+                act = float(bits[1]) if len(bits) > 1 else -1.0
+            except ValueError:
+                act = -1.0
+            pp = _parse_power(body)
+            if pp:
+                r.power_sweep.append({"mode": mode,
+                                      "activity": None if act < 0 else act,
+                                      **pp})
+        if r.power_sweep:
+            first = r.power_sweep[0]
+            r.power_internal_w = first["internal"]
+            r.power_switching_w = first["switching"]
+            r.power_leakage_w = first["leakage"]
+            r.power_total_w = first["total"]
+            r.success = r.area_um2 > 0
+            return r
+
     p = _parse_power(sta_out)
     if p:
         r.power_internal_w = p["internal"]
