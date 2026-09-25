@@ -200,8 +200,11 @@ KERNELS_DIR = os.path.join(PACKAGE_DIR, "kernels")
 WORKLOAD_DIR = os.path.join(PACKAGE_DIR, "workload")
 SCRIPTS_DIR = os.path.join(PACKAGE_DIR, "scripts")
 
-PROJECT_ROOT = os.environ.get("SPARSECRAFT_ROOT",
-                              "/home/chia-sparsecraft/sparsecraft-v2")
+# Defaults to the checkout itself, so a fresh clone runs anywhere: runs/ and
+# cache/ land beside src/. scripts/run.sh exports SPARSECRAFT_ROOT explicitly,
+# and runtime_env() forwards it, so the driver and every worker agree even under
+# `chia job submit`, where the driver's __file__ is an uploaded copy.
+PROJECT_ROOT = os.environ.get("SPARSECRAFT_ROOT", PACKAGE_DIR)
 RUN_DIR = os.path.join(PROJECT_ROOT, "runs")
 CACHE_DIR = os.path.join(PROJECT_ROOT, "cache")
 

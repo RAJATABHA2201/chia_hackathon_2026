@@ -3,7 +3,7 @@
 
     python scripts/report_iter.py final15          # every completed iteration
     python scripts/report_iter.py final15 3        # just iteration 3
-    python scripts/report_iter.py final15 --runs-dir /home/chia-sparsecraft/runs
+    python scripts/report_iter.py v2-final15 --runs-dir results   # the published records
 
 Reads THIS checkout's runs/ (constants.RUN_DIR, i.e. $SPARSECRAFT_ROOT/runs)
 unless --runs-dir says otherwise. It used to hardcode V1's shared

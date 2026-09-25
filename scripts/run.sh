@@ -23,6 +23,8 @@ set -euo pipefail
 # below (src/, configs/, runs/) is relative to it. This file lives in scripts/.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+# Where runs/ and cache/ go. Exported so the driver and every worker agree.
+export SPARSECRAFT_ROOT="${SPARSECRAFT_ROOT:-$ROOT}"
 
 ITERS=5
 EXTRA=()
