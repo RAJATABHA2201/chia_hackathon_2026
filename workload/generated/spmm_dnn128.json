@@ -1,0 +1,17 @@
+{
+  "matrix": "n1024-l1.mtx",
+  "M": 128,
+  "K": 128,
+  "N": 32,
+  "dim": 16,
+  "nnz": 512,
+  "density_pct": 3.125,
+  "nz_blocks": 32,
+  "total_blocks": 64,
+  "nz_block_pct": 50.0,
+  "in_block_density_pct": 6.25,
+  "source_was_pattern": false,
+  "dense_macs": 524288,
+  "block_macs": 262144,
+  "useful_macs": 16384
+}
