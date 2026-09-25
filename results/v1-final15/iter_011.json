@@ -1,0 +1,85 @@
+{
+  "iteration": 11,
+  "manifest": {
+    "t0_legality.py": "bf6e9cc944e1ba89",
+    "pareto.py": "bf02a7c026d31592",
+    "t1_model.py": "beea47af3befece4",
+    "metrics.py": "9c6265e3c8d6a401",
+    "kernels/spmm.c": "9479b9070ff6e4fa",
+    "objective_weights": "340f0716bd727cd5"
+  },
+  "parent_hash": "6953be40d24a9cfa",
+  "weights_hash": "340f0716bd727cd5",
+  "seed": 0,
+  "llm_returncode": 0,
+  "touched_paths": [
+    "generators/gemmini/src/main/scala/gemmini/CounterFile.scala",
+    "generators/gemmini/src/main/scala/gemmini/ExecuteController.scala",
+    "generators/gemmini/src/main/scala/gemmini/PE.scala",
+    "generators/gemmini/src/main/scala/gemmini/Scratchpad.scala",
+    "generators/gemmini/chipyard/SparseCraftConfigs.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_counter.h",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_params.h"
+  ],
+  "diff_bytes": 28763,
+  "state_hash": "67203d83f8f8bf67",
+  "state": {
+    "meshRows": 16,
+    "meshColumns": 16,
+    "tileRows": 1,
+    "tileColumns": 1,
+    "dataflow": "WS",
+    "sp_capacity_kb": 64,
+    "acc_capacity_kb": 64,
+    "sp_banks": 4,
+    "acc_banks": 2,
+    "spad_read_delay": 4,
+    "acc_latency": 2,
+    "max_in_flight_mem_reqs": 64,
+    "dma_maxbytes": 64,
+    "dma_buswidth": 128,
+    "tlb_size": 4,
+    "ld_queue_length": 8,
+    "st_queue_length": 2,
+    "ex_queue_length": 8,
+    "reservation_station_entries_ld": 8,
+    "reservation_station_entries_st": 4,
+    "reservation_station_entries_ex": 16,
+    "has_normalizations": false,
+    "mvin_scale_shared": false,
+    "num_counter": 8,
+    "gate_enable": true,
+    "zbu_enable": false,
+    "granule_size": 16,
+    "zbu_operand": "A",
+    "workload": "dnn512",
+    "dense_mode": false,
+    "k_chunk": 16,
+    "x_resident": true,
+    "b_blocks": 0,
+    "a_blocks": 1
+  },
+  "hw_hash": "5e54118e9305cb04",
+  "move": {
+    "class": "HW",
+    "hw_fields": [
+      "has_normalizations"
+    ],
+    "sw_fields": [],
+    "n_changed": 1,
+    "changed": {
+      "has_normalizations": [
+        false,
+        true
+      ]
+    },
+    "forces_elaboration": true
+  },
+  "verdict": "T0_ILLEGAL",
+  "violations": [
+    "fusion.no_materialised_S: has_normalizations=false leaves no hardware softmax (NormCmd.MAX/SUM_EXP/INV_SUM_EXP), so S would have to be materialised"
+  ]
+}

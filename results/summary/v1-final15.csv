@@ -1,0 +1,16 @@
+iteration,verdict,layer,change,cycles,offchip_bytes,area_mm2,energy_uJ,energy_recorded_uJ,perf_per_watt_gops_w,equiv_mismatches,repair,prediction,wall_min
+1,ADMIT_FRONT,NONE,baseline,106650,3211264,4.035,95.67,95.67,10.96,0,,,32.5
+2,ADMIT_FRONT,HW,gate_enable False->True,106650,3211264,4.1078,93.55,93.55,11.21,0,,,48.6
+3,ADMIT_FRONT,SW,x_resident False->True,79433,327680,4.1078,30.11,30.11,34.82,0,,,47.4
+4,EQUIV_FAILED,HW,meshRows 16->32; meshColumns 16->32,,,,,,,32674,,,0.0
+5,ADMIT_FRONT,HW,sp_capacity_kb 256->128,50862,327680,3.4522,25.04,27.73,41.88,0,,,41.6
+6,ADMIT_FRONT,HW,sp_capacity_kb 128->64,50862,327680,3.123,21.84,27.73,48.02,0,,,42.4
+7,REJECT,HW,sp_banks 4->16,50862,327680,3.258,21.84,27.73,48.02,0,,,44.3
+8,ADMIT_FRONT,NONE,,50862,327680,3.074,21.84,27.73,48.02,0,,,19.9
+9,REJECT,SW,k_chunk 16->32,62269,1146880,3.074,39.86,45.76,26.31,0,,,41.4
+10,REJECT,HW,zbu_enable False->True,50862,327680,3.1251,18.5,27.73,56.67,0,,,45.1
+11,T0_ILLEGAL,HW,has_normalizations True->False,,,,,,,,,,0.0
+12,ADMIT_FRONT,NONE,,50862,327680,3.0737,21.84,27.73,48.02,0,,,21.4
+13,ADMIT_FRONT,HW,spad_read_delay 4->2,50780,327680,3.0361,21.84,27.73,48.02,0,,,45.5
+14,ADMIT_FRONT,HW,acc_capacity_kb 64->32,50780,327680,2.8729,19.93,27.73,52.61,0,,,51.2
+15,ADMIT_FRONT,HW,acc_capacity_kb 32->16; spad_read_delay 2->1,51001,327680,2.7703,18.86,27.73,55.61,0,,,38.6

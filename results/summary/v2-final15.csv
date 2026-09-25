@@ -1,0 +1,16 @@
+iteration,verdict,layer,change,cycles,offchip_bytes,area_mm2,energy_uJ,energy_recorded_uJ,perf_per_watt_gops_w,equiv_mismatches,repair,prediction,wall_min
+1,ADMIT_FRONT,NONE,baseline,106650,3211264,4.035,95.67,95.67,10.96,0,,,22.6
+2,ADMIT_FRONT,SW,x_resident False->True,79433,327680,4.035,32.23,32.23,32.53,0,,4/4,21.9
+3,ADMIT_FRONT,HW,gate_enable False->True,79433,327680,4.1047,30.11,30.11,34.82,0,,2/4,25.3
+4,ADMIT_FRONT,HW,zbu_enable False->True,79433,327680,4.2772,24.84,24.84,42.22,0,,4/4,42.5
+5,EQUIV_FAILED,HW,meshRows 16->32; meshColumns 16->32; granule_size 16->32,,,,,,,32674,EQUIV_FAILED -> failed (1),,29.9
+6,DUPLICATE,HW,meshRows 16->32; meshColumns 16->32; granule_size 16->32,,,,,,,,,,3.6
+7,DUPLICATE,HW,meshRows 16->32; meshColumns 16->32; granule_size 16->32,,,,,,,,,,3.7
+8,ADMIT_FRONT,HW,sp_capacity_kb 256->128,50862,327680,3.5365,20.95,20.95,50.05,0,,3/4,26.0
+9,ADMIT_FRONT,HW,sp_capacity_kb 128->64,50862,327680,3.1649,18.5,18.5,56.67,0,,4/4,27.9
+10,ADMIT_FRONT,HW,granule_size 16->8,50862,327680,3.2044,18.5,16.72,56.67,0,,4/4,27.9
+11,ADMIT_FRONT,HW,granule_size 8->4,50862,327680,3.2784,18.5,15.83,56.67,0,,4/4,27.7
+12,ADMIT_FRONT,SW,b_blocks 0->4,50862,327680,3.2784,18.5,15.83,56.67,0,,2/4,26.9
+13,T0_ILLEGAL,HW,has_normalizations True->False,,,,,,,,T0_ILLEGAL -> failed (1),,7.1
+14,T0_ILLEGAL,HW,granule_size 4->2,,,,,,,,T0_ILLEGAL -> failed (1),,10.2
+15,ADMIT_FRONT,HW,acc_capacity_kb 64->32,50862,327680,3.1152,17.04,14.73,61.53,0,,3/4,24.8

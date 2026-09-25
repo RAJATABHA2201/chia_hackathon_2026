@@ -1,0 +1,145 @@
+{
+  "iteration": 4,
+  "manifest": {
+    "t0_legality.py": "bf6e9cc944e1ba89",
+    "pareto.py": "bf02a7c026d31592",
+    "t1_model.py": "beea47af3befece4",
+    "metrics.py": "9c6265e3c8d6a401",
+    "kernels/spmm.c": "9479b9070ff6e4fa",
+    "objective_weights": "340f0716bd727cd5"
+  },
+  "parent_hash": "b26ea9c6a9a656ff",
+  "weights_hash": "340f0716bd727cd5",
+  "seed": 0,
+  "llm_returncode": 0,
+  "touched_paths": [
+    "generators/gemmini/src/main/scala/gemmini/CounterFile.scala",
+    "generators/gemmini/src/main/scala/gemmini/ExecuteController.scala",
+    "generators/gemmini/src/main/scala/gemmini/PE.scala",
+    "generators/gemmini/src/main/scala/gemmini/Scratchpad.scala",
+    "generators/gemmini/chipyard/SparseCraftConfigs.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_counter.h",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_params.h"
+  ],
+  "diff_bytes": 28655,
+  "state_hash": "61421abe217e47ef",
+  "state": {
+    "meshRows": 32,
+    "meshColumns": 32,
+    "tileRows": 1,
+    "tileColumns": 1,
+    "dataflow": "WS",
+    "sp_capacity_kb": 256,
+    "acc_capacity_kb": 64,
+    "sp_banks": 4,
+    "acc_banks": 2,
+    "spad_read_delay": 4,
+    "acc_latency": 2,
+    "max_in_flight_mem_reqs": 64,
+    "dma_maxbytes": 64,
+    "dma_buswidth": 128,
+    "tlb_size": 4,
+    "ld_queue_length": 8,
+    "st_queue_length": 2,
+    "ex_queue_length": 8,
+    "reservation_station_entries_ld": 8,
+    "reservation_station_entries_st": 4,
+    "reservation_station_entries_ex": 16,
+    "has_normalizations": true,
+    "mvin_scale_shared": false,
+    "num_counter": 8,
+    "gate_enable": true,
+    "zbu_enable": false,
+    "granule_size": 16,
+    "zbu_operand": "A",
+    "workload": "dnn512",
+    "dense_mode": false,
+    "k_chunk": 16,
+    "x_resident": true,
+    "b_blocks": 0,
+    "a_blocks": 1
+  },
+  "hw_hash": "d33cd8f12d74af49",
+  "move": {
+    "class": "HW",
+    "hw_fields": [
+      "meshColumns",
+      "meshRows"
+    ],
+    "sw_fields": [],
+    "n_changed": 2,
+    "changed": {
+      "meshRows": [
+        32,
+        16
+      ],
+      "meshColumns": [
+        32,
+        16
+      ]
+    },
+    "forces_elaboration": true
+  },
+  "rtl_digest": "fe1a6ad665391f1a",
+  "n12_compile": {
+    "ok": true,
+    "rc": 0
+  },
+  "t1_prediction": {
+    "cycles": 73736.0,
+    "bound_by": "memory",
+    "bytes_offchip": 1179776,
+    "sram_bytes": 327680,
+    "metadata_bytes": 128,
+    "eta_balance": 1.0,
+    "kv_refetch": 1.0,
+    "area_um2": 1860612.5392896,
+    "period_ns": 1.299,
+    "time_ns": 95783.064,
+    "energy_pj": 48621355.66951826
+  },
+  "netlist_digest": "b6b636fd10e51ba3",
+  "netlist_files": 654,
+  "metrics": {
+    "cycles": 134000,
+    "macs_useful": 524288,
+    "counters": {
+      "macs_issued": 8388608,
+      "tiles_issued": 512,
+      "nz_blocks": 512,
+      "total_blocks": 1024,
+      "dense_mode": 0,
+      "M": 512,
+      "K": 512,
+      "N": 64,
+      "dim": 16,
+      "nnz": 8192,
+      "equiv_mismatches": 32674,
+      "equiv_first_i": 0,
+      "equiv_first_j": 0,
+      "equiv_got": 339,
+      "equiv_want": 190,
+      "checksum": -23961,
+      "EXE_ACTIVE_CYCLE": 78598,
+      "LOAD_DMA_WAIT_CYCLE": 1902,
+      "SCRATCHPAD_A_WAIT_CYCLE": 583681,
+      "SCRATCHPAD_B_WAIT_CYCLE": 601347,
+      "RESERVATION_STATION_FULL_CYCLES": 695419,
+      "MAC_GATED_TOTAL": 62887424,
+      "RDMA_BYTES_REC": 2260992,
+      "WDMA_BYTES_SENT": 524288,
+      "done": 1
+    },
+    "derived": {
+      "bytes_offchip": 2785280,
+      "dma_wait_fraction": 0.0142,
+      "conflict_stall_fraction": 8.8435,
+      "exe_active_fraction": 0.5866
+    }
+  },
+  "equiv_mismatches": 32674,
+  "verdict": "EQUIV_FAILED"
+}
