@@ -1,0 +1,267 @@
+{
+  "iterations": [
+    {
+      "iteration": 1,
+      "state": "57db9c2e428dc22f",
+      "mutation": {},
+      "cycles": 106650,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 95.673,
+      "power_W": 0.4485,
+      "perf_GOPS": 4.916,
+      "perf_per_watt_GOPS_W": 10.96,
+      "mac_efficiency": 0.0625,
+      "area_um2": 4034991,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "array idle (exe_active=0.39), scratchpad-wait dominated (spad=1,095,453 vs rs_full=601,048) -- lever L1 tiling or L3 capacity. NOTE bank COUNT alone has been ineffective here."
+    },
+    {
+      "iteration": 2,
+      "state": "d15b0ef5ad217b58",
+      "mutation": {
+        "gate_enable": [
+          false,
+          true
+        ]
+      },
+      "cycles": 106650,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 93.55,
+      "power_W": 0.4386,
+      "perf_GOPS": 4.916,
+      "perf_per_watt_GOPS_W": 11.209,
+      "mac_efficiency": 0.0625,
+      "area_um2": 4107785,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "array idle (exe_active=0.39), scratchpad-wait dominated (spad=1,095,453 vs rs_full=601,048) -- lever L1 tiling or L3 capacity. NOTE bank COUNT alone has been ineffective here.\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n\n  state hashes already in the archive: 57db9c2e\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result."
+    },
+    {
+      "iteration": 3,
+      "state": "b26ea9c6a9a656ff",
+      "mutation": {
+        "x_resident": [
+          false,
+          true
+        ]
+      },
+      "cycles": 79433,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 30.111,
+      "power_W": 0.1895,
+      "perf_GOPS": 6.6,
+      "perf_per_watt_GOPS_W": 34.823,
+      "mac_efficiency": 0.0625,
+      "area_um2": 4107785,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "compute bound (exe_active=0.90) -- lever L2 geometry\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: gate_enable: False -> True\n      -> ADMIT_FRONT | 106,650 cyc | 93.55 uJ | 11.209 GOPS/W\n\n  state hashes already in the archive: 57db9c2e, d15b0ef5\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result."
+    },
+    {
+      "iteration": 5,
+      "state": "a82d33528d8ec2b4",
+      "mutation": {
+        "sp_capacity_kb": [
+          256,
+          128
+        ]
+      },
+      "cycles": 50862,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 27.735,
+      "power_W": 0.2726,
+      "perf_GOPS": 10.308,
+      "perf_per_watt_GOPS_W": 37.807,
+      "mac_efficiency": 0.0625,
+      "area_um2": 3452204,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "unclassified (exe_active=0.75, dma_wait=0.01)\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: gate_enable: False -> True\n      -> ADMIT_FRONT | 106,650 cyc | 93.55 uJ | 11.209 GOPS/W\n  - iter 3: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n\n  state hashes already in the archive: 57db9c2e, b26ea9c6, d15b0ef5\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result."
+    },
+    {
+      "iteration": 6,
+      "state": "6953be40d24a9cfa",
+      "mutation": {
+        "sp_capacity_kb": [
+          128,
+          64
+        ]
+      },
+      "cycles": 50862,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 27.735,
+      "power_W": 0.2726,
+      "perf_GOPS": 10.308,
+      "perf_per_watt_GOPS_W": 37.807,
+      "mac_efficiency": 0.0625,
+      "area_um2": 3123040,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "unclassified (exe_active=0.75, dma_wait=0.01)\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: gate_enable: False -> True\n      -> ADMIT_FRONT | 106,650 cyc | 93.55 uJ | 11.209 GOPS/W\n  - iter 3: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 5: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n\n  state hashes already in the archive: 57db9c2e, a82d3352, b26ea9c6, d15b0ef5\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result."
+    },
+    {
+      "iteration": 7,
+      "state": "7361674619723af2",
+      "mutation": {
+        "sp_banks": [
+          4,
+          16
+        ]
+      },
+      "cycles": 50862,
+      "verdict": "REJECT",
+      "energy_uJ": 27.735,
+      "power_W": 0.2726,
+      "perf_GOPS": 10.308,
+      "perf_per_watt_GOPS_W": 37.807,
+      "mac_efficiency": 0.0625,
+      "area_um2": 3257976,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "unclassified (exe_active=0.75, dma_wait=0.01)\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: gate_enable: False -> True\n      -> ADMIT_FRONT | 106,650 cyc | 93.55 uJ | 11.209 GOPS/W\n  - iter 3: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 5: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 6: sp_capacity_kb: 128 -> 64\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n\n  state hashes already in the archive: 57db9c2e, 6953be40, a82d3352, b26ea9c6, d15b0ef5\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result."
+    },
+    {
+      "iteration": 8,
+      "state": "6953be40d24a9cfa",
+      "mutation": {},
+      "cycles": 50862,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 27.735,
+      "power_W": 0.2726,
+      "perf_GOPS": 10.308,
+      "perf_per_watt_GOPS_W": 37.807,
+      "mac_efficiency": 0.0625,
+      "area_um2": 3073967,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "unclassified (exe_active=0.75, dma_wait=0.01)\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: gate_enable: False -> True\n      -> ADMIT_FRONT | 106,650 cyc | 93.55 uJ | 11.209 GOPS/W\n  - iter 3: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 5: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 6: sp_capacity_kb: 128 -> 64\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 7: sp_banks: 4 -> 16\n      -> REJECT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n\n  state hashes already in the archive: 57db9c2e, 6953be40, 73616746, a82d3352, b26ea9c6, d15b0ef5\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result."
+    },
+    {
+      "iteration": 9,
+      "state": "b5a7512e07c131bb",
+      "mutation": {
+        "k_chunk": [
+          16,
+          32
+        ]
+      },
+      "cycles": 62269,
+      "verdict": "REJECT",
+      "energy_uJ": 45.757,
+      "power_W": 0.3674,
+      "perf_GOPS": 8.42,
+      "perf_per_watt_GOPS_W": 22.916,
+      "mac_efficiency": 0.0625,
+      "area_um2": 3073967,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "unclassified (exe_active=0.59, dma_wait=0.02)\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: gate_enable: False -> True\n      -> ADMIT_FRONT | 106,650 cyc | 93.55 uJ | 11.209 GOPS/W\n  - iter 3: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 5: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 6: sp_capacity_kb: 128 -> 64\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 7: sp_banks: 4 -> 16\n      -> REJECT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 8: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n\n  state hashes already in the archive: 57db9c2e, 6953be40, 73616746, a82d3352, b26ea9c6, d15b0ef5\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result."
+    },
+    {
+      "iteration": 10,
+      "state": "8f3d9c1e0dbc51a6",
+      "mutation": {
+        "zbu_enable": [
+          false,
+          true
+        ]
+      },
+      "cycles": 50862,
+      "verdict": "REJECT",
+      "energy_uJ": 27.735,
+      "power_W": 0.2726,
+      "perf_GOPS": 10.308,
+      "perf_per_watt_GOPS_W": 37.807,
+      "mac_efficiency": 0.0625,
+      "area_um2": 3125081,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "unclassified (exe_active=0.75, dma_wait=0.01)\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: gate_enable: False -> True\n      -> ADMIT_FRONT | 106,650 cyc | 93.55 uJ | 11.209 GOPS/W\n  - iter 3: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 5: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 6: sp_capacity_kb: 128 -> 64\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 7: sp_banks: 4 -> 16\n      -> REJECT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 8: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 9: k_chunk: 16 -> 32\n      -> REJECT | 62,269 cyc | 45.757 uJ | 22.916 GOPS/W\n\n  state hashes already in the archive: 57db9c2e, 6953be40, 73616746, a82d3352, b26ea9c6, b5a7512e, d15b0ef5\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result."
+    },
+    {
+      "iteration": 12,
+      "state": "6953be40d24a9cfa",
+      "mutation": {},
+      "cycles": 50862,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 27.735,
+      "power_W": 0.2726,
+      "perf_GOPS": 10.308,
+      "perf_per_watt_GOPS_W": 37.807,
+      "mac_efficiency": 0.0625,
+      "area_um2": 3073687,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "unclassified (exe_active=0.75, dma_wait=0.01)\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: gate_enable: False -> True\n      -> ADMIT_FRONT | 106,650 cyc | 93.55 uJ | 11.209 GOPS/W\n  - iter 3: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 5: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 6: sp_capacity_kb: 128 -> 64\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 7: sp_banks: 4 -> 16\n      -> REJECT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 8: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 9: k_chunk: 16 -> 32\n      -> REJECT | 62,269 cyc | 45.757 uJ | 22.916 GOPS/W\n  - iter 10: zbu_enable: False -> True\n      -> REJECT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n\n  state hashes already in the archive: 57db9c2e, 6953be40, 73616746, 8f3d9c1e, a82d3352, b26ea9c6, b5a7512e, d15b0ef5\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result."
+    },
+    {
+      "iteration": 13,
+      "state": "87de66a28b68bded",
+      "mutation": {
+        "spad_read_delay": [
+          4,
+          2
+        ]
+      },
+      "cycles": 50780,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 27.735,
+      "power_W": 0.2731,
+      "perf_GOPS": 10.325,
+      "perf_per_watt_GOPS_W": 37.807,
+      "mac_efficiency": 0.0625,
+      "area_um2": 3036095,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "unclassified (exe_active=0.76, dma_wait=0.02)\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: gate_enable: False -> True\n      -> ADMIT_FRONT | 106,650 cyc | 93.55 uJ | 11.209 GOPS/W\n  - iter 3: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 5: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 6: sp_capacity_kb: 128 -> 64\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 7: sp_banks: 4 -> 16\n      -> REJECT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 8: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 9: k_chunk: 16 -> 32\n      -> REJECT | 62,269 cyc | 45.757 uJ | 22.916 GOPS/W\n  - iter 10: zbu_enable: False -> True\n      -> REJECT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 12: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n\n  state hashes already in the archive: 57db9c2e, 6953be40, 73616746, 8f3d9c1e, a82d3352, b26ea9c6, b5a7512e, d15b0ef5\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result."
+    },
+    {
+      "iteration": 14,
+      "state": "0a83b8f5e3d9ed3b",
+      "mutation": {
+        "acc_capacity_kb": [
+          64,
+          32
+        ]
+      },
+      "cycles": 50780,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 27.735,
+      "power_W": 0.2731,
+      "perf_GOPS": 10.325,
+      "perf_per_watt_GOPS_W": 37.807,
+      "mac_efficiency": 0.0625,
+      "area_um2": 2872907,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "unclassified (exe_active=0.76, dma_wait=0.02)\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: gate_enable: False -> True\n      -> ADMIT_FRONT | 106,650 cyc | 93.55 uJ | 11.209 GOPS/W\n  - iter 3: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 5: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 6: sp_capacity_kb: 128 -> 64\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 7: sp_banks: 4 -> 16\n      -> REJECT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 8: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 9: k_chunk: 16 -> 32\n      -> REJECT | 62,269 cyc | 45.757 uJ | 22.916 GOPS/W\n  - iter 10: zbu_enable: False -> True\n      -> REJECT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 12: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 13: spad_read_delay: 4 -> 2\n      -> ADMIT_FRONT | 50,780 cyc | 27.735 uJ | 37.807 GOPS/W\n\n  state hashes already in the archive: 57db9c2e, 6953be40, 73616746, 87de66a2, 8f3d9c1e, a82d3352, b26ea9c6, b5a7512e, d15b0ef5\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result."
+    },
+    {
+      "iteration": 15,
+      "state": "0a5aaaf00f74e026",
+      "mutation": {
+        "acc_capacity_kb": [
+          32,
+          16
+        ],
+        "spad_read_delay": [
+          2,
+          1
+        ]
+      },
+      "cycles": 51001,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 27.735,
+      "power_W": 0.2719,
+      "perf_GOPS": 10.28,
+      "perf_per_watt_GOPS_W": 37.807,
+      "mac_efficiency": 0.0625,
+      "area_um2": 2770319,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "unclassified (exe_active=0.75, dma_wait=0.01)\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: gate_enable: False -> True\n      -> ADMIT_FRONT | 106,650 cyc | 93.55 uJ | 11.209 GOPS/W\n  - iter 3: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 5: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 6: sp_capacity_kb: 128 -> 64\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 7: sp_banks: 4 -> 16\n      -> REJECT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 8: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 9: k_chunk: 16 -> 32\n      -> REJECT | 62,269 cyc | 45.757 uJ | 22.916 GOPS/W\n  - iter 10: zbu_enable: False -> True\n      -> REJECT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 12: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 50,862 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 13: spad_read_delay: 4 -> 2\n      -> ADMIT_FRONT | 50,780 cyc | 27.735 uJ | 37.807 GOPS/W\n  - iter 14: acc_capacity_kb: 64 -> 32\n      -> ADMIT_FRONT | 50,780 cyc | 27.735 uJ | 37.807 GOPS/W\n\n  state hashes already in the archive: 0a83b8f5, 57db9c2e, 6953be40, 73616746, 87de66a2, 8f3d9c1e, a82d3352, b26ea9c6, b5a7512e, d15b0ef5\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result."
+    }
+  ],
+  "front": [
+    {
+      "state": "0a83b8f5e3d9ed3b",
+      "t": 101560.0,
+      "E": 27734835.2,
+      "A": 2872906.682403
+    },
+    {
+      "state": "0a5aaaf00f74e026",
+      "t": 102002.0,
+      "E": 27734835.2,
+      "A": 2770318.770003
+    }
+  ]
+}
