@@ -12,3 +12,6 @@ __pycache__/
 
 # Third-party sources fetched to regenerate the workload headers
 workload/SuiteSparse-*/
+
+# Paper drafts, kept out of the repository
+/final_paper_draft/
