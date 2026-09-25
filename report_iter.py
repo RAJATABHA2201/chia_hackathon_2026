@@ -37,9 +37,13 @@ for f in files:
     print(f"ITERATION {it}   verdict={d.get('verdict')}   wall={fmt((d.get('wall_clock_s') or 0)/60,1)} min")
     print("=" * 78)
     print("-- change ------------------------------------------------------")
-    print(f"   move kind        {mv.get('kind') if isinstance(mv,dict) else mv}")
-    print(f"   hw fields        {mv.get('hw') if isinstance(mv,dict) else '-'}")
-    print(f"   sw fields        {mv.get('sw') if isinstance(mv,dict) else '-'}")
+    print(f"   move kind        {mv.get('class') if isinstance(mv,dict) else mv}")
+    print(f"   hw fields        {mv.get('hw_fields') if isinstance(mv,dict) else '-'}")
+    print(f"   sw fields        {mv.get('sw_fields') if isinstance(mv,dict) else '-'}")
+    if isinstance(mv, dict) and mv.get('changed'):
+        # move.changed is {field: [child_value, parent_value]} -- see synth_front.py
+        for k, v in mv['changed'].items():
+            print(f"   changed          {k}: {v[1]} -> {v[0]}")
     print(f"   rtl_digest       {d.get('rtl_digest')}")
     print(f"   netlist_digest   {d.get('netlist_digest')}  ({fmt(d.get('netlist_files'))} files)")
     print(f"   parent           {d.get('parent_hash')}   -> state {d.get('state_hash')}")

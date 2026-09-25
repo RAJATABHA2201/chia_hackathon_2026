@@ -1,7 +1,5 @@
 # SparseCraft CHIA loop — status, 2026-09-24
 
-Written for: whoever picks this repo up next, including a CHIA hackathon reviewer.
-
 This records what the loop is, what it has produced, and — with equal weight —
 what it cannot currently measure. Every number below came out of a tool; where
 a number is modelled rather than measured, it says so on the same line.
