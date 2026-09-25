@@ -1,0 +1,172 @@
+{
+  "iteration": 14,
+  "manifest": {
+    "src/t0_legality.py": "bf6e9cc944e1ba89",
+    "src/pareto.py": "bf02a7c026d31592",
+    "src/t1_model.py": "5f47289476612fd0",
+    "src/metrics.py": "9c6265e3c8d6a401",
+    "kernels/spmm.c": "9479b9070ff6e4fa",
+    "objective_weights": "340f0716bd727cd5"
+  },
+  "parent_hash": "e9ff7d9f9521f550",
+  "weights_hash": "340f0716bd727cd5",
+  "seed": 0,
+  "strategy": {
+    "label": "balanced",
+    "modules": [
+      "strategy/resource-sizing.md",
+      "strategy/dataflow-tiling.md"
+    ]
+  },
+  "candidates": [
+    {
+      "technique": "T-B",
+      "change": "One coupled T-B redesign (plan_id ZBU-STORE-2), both halves in this iteration.",
+      "rationale": "",
+      "predicted": {
+        "time": "flat",
+        "energy": "better",
+        "area": "worse",
+        "fmax": "flat"
+      },
+      "implemented": true
+    },
+    {
+      "technique": "T-B",
+      "change": "granule_size: 4 -> 2, coupled with bitmap storage `RegInit(Vec(n, UInt(nGran.W)))` -> unreset `Mem(n)` + post-reset clearing sweep + `init_done` gate",
+      "rationale": "captured zero mass 0.772 -> 0.879 on a three-point calibrated curve moves the SRAM-access term (\u22488.2 uJ, the largest non-DRAM share); the storage change attacks the 32,768 resettable flops that step would otherwise cost",
+      "predicted": {
+        "time": "flat",
+        "energy": "better",
+        "area": "worse"
+      },
+      "implemented": false
+    },
+    {
+      "technique": "T-B",
+      "change": "bitmap storage flops -> unreset `Mem` ALONE, holding granule_size at 4",
+      "rationale": "same area mechanism (drops the reset network on 16,384 bits) with zero energy risk; would strictly dominate the parent if it lands, but ~1% is close to synthesis noise",
+      "predicted": {
+        "time": "flat",
+        "energy": "flat",
+        "area": "better"
+      },
+      "implemented": false
+    },
+    {
+      "technique": "CONFIG (S-2)",
+      "change": "`acc_capacity_kb: 64 -> 32`, total on-chip SRAM 128 -> 96 KB",
+      "rationale": "the energy model's `sqrt(max(SRAM,32KB)/256KB)` scaling drops 0.707 -> 0.612, a ~13% cut on the \u22488.2 uJ SRAM term (\u2248 -7% total energy) plus a large area win",
+      "predicted": {
+        "time": "worse",
+        "energy": "better",
+        "area": "better"
+      },
+      "implemented": false
+    }
+  ],
+  "prediction": {
+    "time": "flat",
+    "energy": "better",
+    "area": "worse",
+    "fmax": "flat"
+  },
+  "llm_returncode": 0,
+  "touched_paths": [
+    "generators/gemmini/src/main/scala/gemmini/CounterFile.scala",
+    "generators/gemmini/src/main/scala/gemmini/ExecuteController.scala",
+    "generators/gemmini/src/main/scala/gemmini/PE.scala",
+    "generators/gemmini/src/main/scala/gemmini/Scratchpad.scala",
+    "generators/gemmini/chipyard/SparseCraftConfigs.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_counter.h",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_params.h"
+  ],
+  "diff_bytes": 35622,
+  "state_hash": "001ff69835c91c2e",
+  "state": {
+    "meshRows": 16,
+    "meshColumns": 16,
+    "tileRows": 1,
+    "tileColumns": 1,
+    "dataflow": "WS",
+    "sp_capacity_kb": 64,
+    "acc_capacity_kb": 64,
+    "sp_banks": 4,
+    "acc_banks": 2,
+    "spad_read_delay": 4,
+    "acc_latency": 2,
+    "max_in_flight_mem_reqs": 64,
+    "dma_maxbytes": 64,
+    "dma_buswidth": 128,
+    "tlb_size": 4,
+    "ld_queue_length": 8,
+    "st_queue_length": 2,
+    "ex_queue_length": 8,
+    "reservation_station_entries_ld": 8,
+    "reservation_station_entries_st": 4,
+    "reservation_station_entries_ex": 16,
+    "has_normalizations": true,
+    "mvin_scale_shared": false,
+    "num_counter": 8,
+    "gate_enable": true,
+    "zbu_enable": true,
+    "granule_size": 2,
+    "zbu_operand": "A",
+    "workload": "dnn512",
+    "dense_mode": false,
+    "k_chunk": 16,
+    "x_resident": true,
+    "b_blocks": 4,
+    "a_blocks": 1
+  },
+  "hw_hash": "030866d15281db48",
+  "move": {
+    "class": "HW",
+    "hw_fields": [
+      "granule_size"
+    ],
+    "sw_fields": [],
+    "n_changed": 1,
+    "changed": {
+      "granule_size": [
+        2,
+        4
+      ]
+    },
+    "forces_elaboration": true
+  },
+  "repair": {
+    "first_verdict": "T0_ILLEGAL",
+    "attempts": [
+      {
+        "attempt": 1,
+        "failure_class": "t0",
+        "verdict_before": "T0_ILLEGAL",
+        "status": "NOT_ACTIONABLE",
+        "confidence": 5,
+        "files": [],
+        "compiled": "NOT_RUN",
+        "verdict_after": "T0_ILLEGAL",
+        "evidence_after": "(reported NOT_ACTIONABLE; not re-evaluated)",
+        "changed": "",
+        "wall_s": 0.0,
+        "call_ok": true
+      }
+    ],
+    "budget": 3,
+    "outcome": "failed",
+    "stop_reason": "repairer reported NOT_ACTIONABLE",
+    "proposed_state_hash": "001ff69835c91c2e"
+  },
+  "verdict": "T0_ILLEGAL",
+  "failure_class": "t0",
+  "failure_charged": false,
+  "violations": [
+    "zbu.bitmap_budget: bitmap 32768 bits exceeds 5% of scratchpad (64KB) -- granule too fine"
+  ],
+  "wall_clock_s": 612.34,
+  "diagnosis": "T0 rejected: zbu.bitmap_budget: bitmap 32768 bits exceeds 5% of scratchpad (64KB) -- granule too fine\n\nYour mutation failed at T0_ILLEGAL. 1 repair attempt(s) did not fix it (repairer reported NOT_ACTIONABLE). The tree has been ROLLED BACK to the parent design, so your change is NOT present: start from the parent.\n\nTHE REPAIR AGENT'S ROOT-CAUSE ANALYSIS (it found no fix that keeps your mechanism): The `zbu.bitmap_budget` rule is **scale-invariant in every lever I have**, so `granule_size = 2` is unconditionally illegal at INT8, not illegal merely for this capacity. Working the rule's own arithmetic: - `sp_rows = sp_capacity_kb*8192 / (dim*8)` = `64*8192/(16*8)` = **4096** rows - bitmap bits = `sp_rows * (dim/granule_size)` = `4096 * (16/2)` = **32768** bits (exactly the number the harness reported) - budget = 5% of `sp_capacity_kb*8192` = `0.05 * 524288` = **26214.4** bits \u2192 violated by **1.25x** Substituting the first line into the second, the bitmap is `sp_capacity_kb*8192/(dim*8) * dim/granule_size = sp_capacity_kb*1024/granule_size` bits, while the budget is `sp_capacity_kb*409.6` bits. **Both `sp_capacity_kb` and `dim` cancel**, so the rule reduces to `granule_size >= 1024/409.6 = 2.5`, independent of scratchpad capacity, banking and array size. Raising `sp_capacity_kb` (the ...\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 32.235 uJ | 32.53 GOPS/W\n  - iter 3: gate_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 4: zbu_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 24.836 uJ | 42.221 GOPS/W\n  - iter 5: meshRows: 16 -> 32, meshColumns: 16 -> 32, granule_size: 16 -> 32\n      -> EQUIV_FAILED | NOT MEASURED: the repair agent found it cannot work here: The kernel `spmm.c` is not DIM-generic: it defines `DIM_ = SPMM_DIM` (the block size at which `prep_matrices.py` materialised the sparse A for `workload = dnn512`, hard-coded to **16** in `spmm_data.h:10`) and then uses `DIM_` for DRAM pointer arithmetic and strides while using the elaborated hardware `DIM` (from `gemmini_params.h:9`, now **32**) for scr\n  - iter 8: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 20.951 uJ | 50.049 GOPS/W\n  - iter 9: sp_capacity_kb: 128 -> 64\n      -> ADMIT_FRONT | 50,862 cyc | 18.502 uJ | 56.675 GOPS/W\n  - iter 10: granule_size: 16 -> 8\n      -> ADMIT_FRONT | 50,862 cyc | 16.722 uJ | 62.706 GOPS/W\n  - iter 11: granule_size: 8 -> 4\n      -> ADMIT_FRONT | 50,862 cyc | 15.832 uJ | 66.23 GOPS/W\n  - iter 12: b_blocks: 0 -> 4\n      -> ADMIT_FRONT | 50,862 cyc | 15.832 uJ | 66.23 GOPS/W\n  - iter 13: has_normalizations: True -> False\n      -> T0_ILLEGAL | NOT MEASURED: the repair agent found it cannot work here: The mutation is the design field `has_normalizations`, moved `true -> false` (`SparseCraftParams.scala:205`, with the marker/comment block starting at line 67). The violated rule is `fusion.no_materialised_S`, whose condition in the T0 table is stated as an invariant, not an inequality: **`has_normalizations` stays `true`**. There is no coupled field in \n  - iter 14: granule_size: 4 -> 2\n      -> T0_ILLEGAL | NOT MEASURED: the repair agent found it cannot work here: The `zbu.bitmap_budget` rule is **scale-invariant in every lever I have**, so `granule_size = 2` is unconditionally illegal at INT8, not illegal merely for this capacity. Working the rule's own arithmetic: - `sp_rows = sp_capacity_kb*8192 / (dim*8)` = `64*8192/(16*8)` = **4096** rows - bitmap bits = `sp_rows * (dim/granule_size)` = `4096 * (16/2)` = **32\n\n  state hashes already in the archive: 001ff698, 19f116cd, 2025eba7, 374f0e64, 57db9c2e, 82f7573c, 86a3cde0, 89ac2f58, 8f3d9c1e, b26ea9c6, c2799ffd, e9ff7d9f\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result.\n\nMOVES YOU LISTED EARLIER AND HAVE NOT TRIED. Your last change was not admitted; check these against the diagnosis before inventing a new one:\n  - iter 14: [CONFIG (S-2)] `acc_capacity_kb: 64 -> 32`, total on-chip SRAM 128 -> 96 KB -- the energy model's `sqrt(max(SRAM,32KB)/256KB)` scaling drops 0.707 -> 0.612, a ~13% cut on the \u22488.2 uJ SRAM term (\u2248 -7% total energy) plus a large area win\n  - iter 14: [T-B] bitmap storage flops -> unreset `Mem` ALONE, holding granule_size at 4 -- same area mechanism (drops the reset network on 16,384 bits) with zero energy risk; would strictly dominate the parent if it lands, but ~1% is close to synthesis noise\n  - iter 14: [T-B] granule_size: 4 -> 2, coupled with bitmap storage `RegInit(Vec(n, UInt(nGran.W)))` -> unreset `Mem(n)` + post-reset clearing sweep + `init_done` gate -- captured zero mass 0.772 -> 0.879 on a three-point calibrated curve moves the SRAM-access term (\u22488.2 uJ, the largest non-DRAM share); the storage change attacks the 32,768 resettable flops that step would otherwise cost"
+}

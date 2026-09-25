@@ -1,0 +1,236 @@
+{
+  "iteration": 5,
+  "manifest": {
+    "src/t0_legality.py": "bf6e9cc944e1ba89",
+    "src/pareto.py": "bf02a7c026d31592",
+    "src/t1_model.py": "5f47289476612fd0",
+    "src/metrics.py": "9c6265e3c8d6a401",
+    "kernels/spmm.c": "9479b9070ff6e4fa",
+    "objective_weights": "340f0716bd727cd5"
+  },
+  "parent_hash": "86a3cde04902574e",
+  "weights_hash": "340f0716bd727cd5",
+  "seed": 0,
+  "strategy": {
+    "label": "compute",
+    "modules": [
+      "strategy/nm-structured.md"
+    ]
+  },
+  "candidates": [
+    {
+      "technique": "CONFIG",
+      "change": "L2 geometry: meshRows/meshColumns 16 -> 32 (tileRows/tileColumns stay 1), giving a 32x32 = 1024-PE square WS mesh in place of 256 PEs.",
+      "rationale": "",
+      "predicted": {
+        "time": "better",
+        "energy": "flat",
+        "area": "worse",
+        "fmax": "flat"
+      },
+      "implemented": true
+    },
+    {
+      "technique": "CONFIG",
+      "change": "meshRows/meshColumns: 16 -> 32 (granule_size: 16 -> 32 follows mechanically)",
+      "rationale": "cycles pinned at 79,433 for three iterations because both sparsity mechanisms are cycle-flat by wiring; exe_active=0.90 and macs_issued/256 = 32,768 say the mesh itself is the constraint",
+      "predicted": {
+        "time": "better",
+        "energy": "flat",
+        "area": "worse"
+      },
+      "implemented": false
+    },
+    {
+      "technique": "CONFIG",
+      "change": "dma_buswidth: 128 -> 256",
+      "rationale": "off_chip_bytes=327,680 over 79,433 cycles is only 4.1 B/cyc against a 16 B/cyc bus, so this buys nothing *now* \u2014 it is the correct follow-up only once a wider mesh saturates the bus",
+      "predicted": {
+        "time": "flat",
+        "energy": "flat",
+        "area": "worse"
+      },
+      "implemented": false
+    },
+    {
+      "technique": "T-C",
+      "change": "2:4 N:M operand mux on the streaming operand in front of MacUnit",
+      "rationale": "rejected on its own merits \u2014 MAC_GATED_TOTAL says the data is 93.75% zero, far sparser than 2:4, so N:M would be denser than the data and would force multiplies T-A already skips for free, with no cycle win since the issue path is in ExecuteController.scala",
+      "predicted": {
+        "time": "flat",
+        "energy": "worse",
+        "area": "worse"
+      },
+      "implemented": false
+    }
+  ],
+  "prediction": {
+    "time": "better",
+    "energy": "flat",
+    "area": "worse",
+    "fmax": "flat"
+  },
+  "llm_returncode": 0,
+  "touched_paths": [
+    "generators/gemmini/src/main/scala/gemmini/CounterFile.scala",
+    "generators/gemmini/src/main/scala/gemmini/ExecuteController.scala",
+    "generators/gemmini/src/main/scala/gemmini/PE.scala",
+    "generators/gemmini/src/main/scala/gemmini/Scratchpad.scala",
+    "generators/gemmini/chipyard/SparseCraftConfigs.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_counter.h",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_params.h"
+  ],
+  "diff_bytes": 27982,
+  "state_hash": "19f116cdb8e2bb21",
+  "state": {
+    "meshRows": 32,
+    "meshColumns": 32,
+    "tileRows": 1,
+    "tileColumns": 1,
+    "dataflow": "WS",
+    "sp_capacity_kb": 256,
+    "acc_capacity_kb": 64,
+    "sp_banks": 4,
+    "acc_banks": 2,
+    "spad_read_delay": 4,
+    "acc_latency": 2,
+    "max_in_flight_mem_reqs": 64,
+    "dma_maxbytes": 64,
+    "dma_buswidth": 128,
+    "tlb_size": 4,
+    "ld_queue_length": 8,
+    "st_queue_length": 2,
+    "ex_queue_length": 8,
+    "reservation_station_entries_ld": 8,
+    "reservation_station_entries_st": 4,
+    "reservation_station_entries_ex": 16,
+    "has_normalizations": true,
+    "mvin_scale_shared": false,
+    "num_counter": 8,
+    "gate_enable": true,
+    "zbu_enable": true,
+    "granule_size": 32,
+    "zbu_operand": "A",
+    "workload": "dnn512",
+    "dense_mode": false,
+    "k_chunk": 16,
+    "x_resident": true,
+    "b_blocks": 0,
+    "a_blocks": 1
+  },
+  "hw_hash": "af0879a103bae133",
+  "move": {
+    "class": "HW",
+    "hw_fields": [
+      "granule_size",
+      "meshColumns",
+      "meshRows"
+    ],
+    "sw_fields": [],
+    "n_changed": 3,
+    "changed": {
+      "meshRows": [
+        32,
+        16
+      ],
+      "meshColumns": [
+        32,
+        16
+      ],
+      "granule_size": [
+        32,
+        16
+      ]
+    },
+    "forces_elaboration": true
+  },
+  "rtl_digest": "8e66fcac843da4a3",
+  "n12_compile": {
+    "ok": true,
+    "rc": 0
+  },
+  "t1_prediction": {
+    "cycles": 73736.0,
+    "bound_by": "memory",
+    "bytes_offchip": 1179776,
+    "sram_bytes": 327680,
+    "metadata_bytes": 128,
+    "eta_balance": 1.0,
+    "kv_refetch": 1.0,
+    "area_um2": 1865705.5056896,
+    "period_ns": 1.299,
+    "time_ns": 95783.064,
+    "energy_pj": 48621355.66951826
+  },
+  "netlist_digest": "85041d251c2fac9c",
+  "netlist_files": 655,
+  "metrics": {
+    "cycles": 134000,
+    "macs_useful": 524288,
+    "counters": {
+      "macs_issued": 8388608,
+      "tiles_issued": 512,
+      "nz_blocks": 512,
+      "total_blocks": 1024,
+      "dense_mode": 0,
+      "M": 512,
+      "K": 512,
+      "N": 64,
+      "dim": 16,
+      "nnz": 8192,
+      "equiv_mismatches": 32674,
+      "equiv_first_i": 0,
+      "equiv_first_j": 0,
+      "equiv_got": 339,
+      "equiv_want": 190,
+      "checksum": -23961,
+      "EXE_ACTIVE_CYCLE": 78598,
+      "LOAD_DMA_WAIT_CYCLE": 1902,
+      "SCRATCHPAD_A_WAIT_CYCLE": 583681,
+      "SCRATCHPAD_B_WAIT_CYCLE": 588356,
+      "RESERVATION_STATION_FULL_CYCLES": 695419,
+      "MAC_GATED_TOTAL": 62887424,
+      "RDMA_BYTES_REC": 2260992,
+      "WDMA_BYTES_SENT": 524288,
+      "done": 1
+    },
+    "derived": {
+      "bytes_offchip": 2785280,
+      "dma_wait_fraction": 0.0142,
+      "conflict_stall_fraction": 8.7465,
+      "exe_active_fraction": 0.5866
+    }
+  },
+  "equiv_mismatches": 32674,
+  "shrunk_case": "32,674 mismatching outputs. FIRST at [0,0]: got 339, want 190.",
+  "repair": {
+    "first_verdict": "EQUIV_FAILED",
+    "attempts": [
+      {
+        "attempt": 1,
+        "failure_class": "divergence",
+        "verdict_before": "EQUIV_FAILED",
+        "status": "NOT_ACTIONABLE",
+        "confidence": 5,
+        "files": [],
+        "compiled": "NOT_RUN",
+        "verdict_after": "EQUIV_FAILED",
+        "evidence_after": "(reported NOT_ACTIONABLE; not re-evaluated)",
+        "changed": "",
+        "wall_s": 0.0,
+        "call_ok": true
+      }
+    ],
+    "budget": 3,
+    "outcome": "failed",
+    "stop_reason": "repairer reported NOT_ACTIONABLE",
+    "proposed_state_hash": "19f116cdb8e2bb21"
+  },
+  "verdict": "EQUIV_FAILED",
+  "failure_class": "divergence",
+  "failure_charged": false,
+  "wall_clock_s": 1796.22
+}

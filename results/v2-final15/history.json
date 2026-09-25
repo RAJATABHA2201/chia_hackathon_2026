@@ -1,0 +1,251 @@
+{
+  "iterations": [
+    {
+      "iteration": 1,
+      "state": "57db9c2e428dc22f",
+      "mutation": {},
+      "cycles": 106650,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 95.673,
+      "power_W": 0.4485,
+      "perf_GOPS": 4.916,
+      "perf_per_watt_GOPS_W": 10.96,
+      "mac_efficiency": 0.0625,
+      "area_um2": 4034991,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "array idle (exe_active=0.39), scratchpad-wait dominated (spad=1,095,453 vs rs_full=601,048) -- lever L1 tiling or L3 capacity. NOTE bank COUNT alone has been ineffective here."
+    },
+    {
+      "iteration": 2,
+      "state": "89ac2f58484aeba7",
+      "mutation": {
+        "x_resident": [
+          false,
+          true
+        ]
+      },
+      "cycles": 79433,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 32.235,
+      "power_W": 0.2029,
+      "perf_GOPS": 6.6,
+      "perf_per_watt_GOPS_W": 32.53,
+      "mac_efficiency": 0.0625,
+      "area_um2": 4034991,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "compute bound (exe_active=0.90) -- lever L2 geometry\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n\n  state hashes already in the archive: 57db9c2e\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result.\n\nYOUR PREDICTION vs THE MEASUREMENT: time better -> measured better (-25.5%); energy better -> measured better (-66.3%); area flat -> measured flat (+0.0%); fmax flat -> measured flat (+0.0%). 4 of 4 right this time, 4 of 4 across the run."
+    },
+    {
+      "iteration": 3,
+      "state": "b26ea9c6a9a656ff",
+      "mutation": {
+        "gate_enable": [
+          false,
+          true
+        ]
+      },
+      "cycles": 79433,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 30.111,
+      "power_W": 0.1895,
+      "perf_GOPS": 6.6,
+      "perf_per_watt_GOPS_W": 34.823,
+      "mac_efficiency": 0.0625,
+      "area_um2": 4104745,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "compute bound (exe_active=0.90) -- lever L2 geometry\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 32.235 uJ | 32.53 GOPS/W\n\n  state hashes already in the archive: 57db9c2e, 89ac2f58\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result.\n\nYOUR PREDICTION vs THE MEASUREMENT: time worse -> measured flat (+0.0%); energy better -> measured better (-6.6%); area worse -> measured worse (+1.7%); fmax worse -> measured flat (+0.0%). 2 of 4 right this time, 6 of 8 across the run."
+    },
+    {
+      "iteration": 4,
+      "state": "86a3cde04902574e",
+      "mutation": {
+        "zbu_enable": [
+          false,
+          true
+        ]
+      },
+      "cycles": 79433,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 24.836,
+      "power_W": 0.1563,
+      "perf_GOPS": 6.6,
+      "perf_per_watt_GOPS_W": 42.221,
+      "mac_efficiency": 0.0625,
+      "area_um2": 4277157,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "compute bound (exe_active=0.90) -- lever L2 geometry\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 32.235 uJ | 32.53 GOPS/W\n  - iter 3: gate_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n\n  state hashes already in the archive: 57db9c2e, 89ac2f58, b26ea9c6\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result.\n\nYOUR PREDICTION vs THE MEASUREMENT: time flat -> measured flat (+0.0%); energy better -> measured better (-17.5%); area worse -> measured worse (+4.2%); fmax flat -> measured flat (+0.0%). 4 of 4 right this time, 10 of 12 across the run."
+    },
+    {
+      "iteration": 5,
+      "state": "19f116cdb8e2bb21",
+      "mutation": {
+        "meshRows": [
+          16,
+          32
+        ],
+        "meshColumns": [
+          16,
+          32
+        ],
+        "granule_size": [
+          16,
+          32
+        ]
+      },
+      "verdict": "EQUIV_FAILED",
+      "reason": "the repair agent found it cannot work here: The kernel `spmm.c` is not DIM-generic: it defines `DIM_ = SPMM_DIM` (the block size at which `prep_matrices.py` materialised the sparse A for `workload = dnn512`, hard-coded to **16** in `spmm_data.h:10`) and then uses `DIM_` for DRAM pointer arithmetic and strides while using the elaborated hardware `DIM` (from `gemmini_params.h:9`, now **32**) for scratchpad addresses and for every `gemmini_extended_mvin` / `gemmini_extended_preload` row and column count \u2014 e.g. `gemmini_extended_mvin(Ablk[done+k], A_SP_BASE + k*DIM, DIM, DIM)` after `gemmini_extended_config_ld(DIM_*sizeof(elem_t), ...)`, and `#define X_SLICE_ROWS ((SPMM_N/DIM_)*DIM)`. The mutation `meshRows/meshColumns 16\u219232` makes `DIM = meshRows*tileRows = 32 \u2260 SPMM_DIM = 16`, so every A tile is assembled from four adjacent 16\u00d716 blocks read at a 16-byte stride and every X slice is moved in with 2\u00d7 overlap; the array therefore ..."
+    },
+    {
+      "iteration": 8,
+      "state": "2025eba76f198cbe",
+      "mutation": {
+        "sp_capacity_kb": [
+          256,
+          128
+        ]
+      },
+      "cycles": 50862,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 20.951,
+      "power_W": 0.206,
+      "perf_GOPS": 10.308,
+      "perf_per_watt_GOPS_W": 50.049,
+      "mac_efficiency": 0.0625,
+      "area_um2": 3536541,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "balanced, no single bottleneck (exe_active=0.75, dma_wait=0.01): the array is neither starved nor saturated, so resizing a resource that already fits will not move cycles. Change the MECHANISM (T-A / T-B scope, granularity, operand), or remove capacity the software schedule no longer needs\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 32.235 uJ | 32.53 GOPS/W\n  - iter 3: gate_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 4: zbu_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 24.836 uJ | 42.221 GOPS/W\n  - iter 5: meshRows: 16 -> 32, meshColumns: 16 -> 32, granule_size: 16 -> 32\n      -> EQUIV_FAILED | NOT MEASURED: the repair agent found it cannot work here: The kernel `spmm.c` is not DIM-generic: it defines `DIM_ = SPMM_DIM` (the block size at which `prep_matrices.py` materialised the sparse A for `workload = dnn512`, hard-coded to **16** in `spmm_data.h:10`) and then uses `DIM_` for DRAM pointer arithmetic and strides while using the elaborated hardware `DIM` (from `gemmini_params.h:9`, now **32**) for scr\n\n  state hashes already in the archive: 19f116cd, 57db9c2e, 86a3cde0, 89ac2f58, b26ea9c6\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result.\n\nYOUR PREDICTION vs THE MEASUREMENT: time better -> measured better (-36.0%); energy better -> measured better (-15.6%); area better -> measured better (-17.3%); fmax better -> measured flat (+0.0%). 3 of 4 right this time, 13 of 16 across the run."
+    },
+    {
+      "iteration": 9,
+      "state": "8f3d9c1e0dbc51a6",
+      "mutation": {
+        "sp_capacity_kb": [
+          128,
+          64
+        ]
+      },
+      "cycles": 50862,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 18.502,
+      "power_W": 0.1819,
+      "perf_GOPS": 10.308,
+      "perf_per_watt_GOPS_W": 56.675,
+      "mac_efficiency": 0.0625,
+      "area_um2": 3164946,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "balanced, no single bottleneck (exe_active=0.75, dma_wait=0.01): the array is neither starved nor saturated, so resizing a resource that already fits will not move cycles. Change the MECHANISM (T-A / T-B scope, granularity, operand), or remove capacity the software schedule no longer needs\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 32.235 uJ | 32.53 GOPS/W\n  - iter 3: gate_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 4: zbu_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 24.836 uJ | 42.221 GOPS/W\n  - iter 5: meshRows: 16 -> 32, meshColumns: 16 -> 32, granule_size: 16 -> 32\n      -> EQUIV_FAILED | NOT MEASURED: the repair agent found it cannot work here: The kernel `spmm.c` is not DIM-generic: it defines `DIM_ = SPMM_DIM` (the block size at which `prep_matrices.py` materialised the sparse A for `workload = dnn512`, hard-coded to **16** in `spmm_data.h:10`) and then uses `DIM_` for DRAM pointer arithmetic and strides while using the elaborated hardware `DIM` (from `gemmini_params.h:9`, now **32**) for scr\n  - iter 8: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 20.951 uJ | 50.049 GOPS/W\n\n  state hashes already in the archive: 19f116cd, 2025eba7, 57db9c2e, 86a3cde0, 89ac2f58, b26ea9c6\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result.\n\nYOUR PREDICTION vs THE MEASUREMENT: time flat -> measured flat (+0.0%); energy better -> measured better (-11.7%); area better -> measured better (-10.5%); fmax flat -> measured flat (+0.0%). 4 of 4 right this time, 17 of 20 across the run."
+    },
+    {
+      "iteration": 10,
+      "state": "c2799ffd9bff3bf6",
+      "mutation": {
+        "granule_size": [
+          16,
+          8
+        ]
+      },
+      "cycles": 50862,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 16.722,
+      "power_W": 0.1644,
+      "perf_GOPS": 10.308,
+      "perf_per_watt_GOPS_W": 62.706,
+      "mac_efficiency": 0.0625,
+      "area_um2": 3204394,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "balanced, no single bottleneck (exe_active=0.75, dma_wait=0.01): the array is neither starved nor saturated, so resizing a resource that already fits will not move cycles. Change the MECHANISM (T-A / T-B scope, granularity, operand), or remove capacity the software schedule no longer needs\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 32.235 uJ | 32.53 GOPS/W\n  - iter 3: gate_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 4: zbu_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 24.836 uJ | 42.221 GOPS/W\n  - iter 5: meshRows: 16 -> 32, meshColumns: 16 -> 32, granule_size: 16 -> 32\n      -> EQUIV_FAILED | NOT MEASURED: the repair agent found it cannot work here: The kernel `spmm.c` is not DIM-generic: it defines `DIM_ = SPMM_DIM` (the block size at which `prep_matrices.py` materialised the sparse A for `workload = dnn512`, hard-coded to **16** in `spmm_data.h:10`) and then uses `DIM_` for DRAM pointer arithmetic and strides while using the elaborated hardware `DIM` (from `gemmini_params.h:9`, now **32**) for scr\n  - iter 8: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 20.951 uJ | 50.049 GOPS/W\n  - iter 9: sp_capacity_kb: 128 -> 64\n      -> ADMIT_FRONT | 50,862 cyc | 18.502 uJ | 56.675 GOPS/W\n\n  state hashes already in the archive: 19f116cd, 2025eba7, 57db9c2e, 86a3cde0, 89ac2f58, 8f3d9c1e, b26ea9c6\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result.\n\nYOUR PREDICTION vs THE MEASUREMENT: time flat -> measured flat (+0.0%); energy better -> measured better (-9.6%); area worse -> measured worse (+1.2%); fmax flat -> measured flat (+0.0%). 4 of 4 right this time, 21 of 24 across the run."
+    },
+    {
+      "iteration": 11,
+      "state": "82f7573cd3b35315",
+      "mutation": {
+        "granule_size": [
+          8,
+          4
+        ]
+      },
+      "cycles": 50862,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 15.832,
+      "power_W": 0.1556,
+      "perf_GOPS": 10.308,
+      "perf_per_watt_GOPS_W": 66.23,
+      "mac_efficiency": 0.0625,
+      "area_um2": 3278410,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "balanced, no single bottleneck (exe_active=0.75, dma_wait=0.01): the array is neither starved nor saturated, so resizing a resource that already fits will not move cycles. Change the MECHANISM (T-A / T-B scope, granularity, operand), or remove capacity the software schedule no longer needs\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 32.235 uJ | 32.53 GOPS/W\n  - iter 3: gate_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 4: zbu_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 24.836 uJ | 42.221 GOPS/W\n  - iter 5: meshRows: 16 -> 32, meshColumns: 16 -> 32, granule_size: 16 -> 32\n      -> EQUIV_FAILED | NOT MEASURED: the repair agent found it cannot work here: The kernel `spmm.c` is not DIM-generic: it defines `DIM_ = SPMM_DIM` (the block size at which `prep_matrices.py` materialised the sparse A for `workload = dnn512`, hard-coded to **16** in `spmm_data.h:10`) and then uses `DIM_` for DRAM pointer arithmetic and strides while using the elaborated hardware `DIM` (from `gemmini_params.h:9`, now **32**) for scr\n  - iter 8: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 20.951 uJ | 50.049 GOPS/W\n  - iter 9: sp_capacity_kb: 128 -> 64\n      -> ADMIT_FRONT | 50,862 cyc | 18.502 uJ | 56.675 GOPS/W\n  - iter 10: granule_size: 16 -> 8\n      -> ADMIT_FRONT | 50,862 cyc | 16.722 uJ | 62.706 GOPS/W\n\n  state hashes already in the archive: 19f116cd, 2025eba7, 57db9c2e, 86a3cde0, 89ac2f58, 8f3d9c1e, b26ea9c6, c2799ffd\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result.\n\nYOUR PREDICTION vs THE MEASUREMENT: time flat -> measured flat (+0.0%); energy better -> measured better (-5.3%); area worse -> measured worse (+2.3%); fmax flat -> measured flat (+0.0%). 4 of 4 right this time, 25 of 28 across the run."
+    },
+    {
+      "iteration": 12,
+      "state": "e9ff7d9f9521f550",
+      "mutation": {
+        "b_blocks": [
+          0,
+          4
+        ]
+      },
+      "cycles": 50862,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 15.832,
+      "power_W": 0.1556,
+      "perf_GOPS": 10.308,
+      "perf_per_watt_GOPS_W": 66.23,
+      "mac_efficiency": 0.0625,
+      "area_um2": 3278410,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "balanced, no single bottleneck (exe_active=0.75, dma_wait=0.01): the array is neither starved nor saturated, so resizing a resource that already fits will not move cycles. Change the MECHANISM (T-A / T-B scope, granularity, operand), or remove capacity the software schedule no longer needs\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 32.235 uJ | 32.53 GOPS/W\n  - iter 3: gate_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 4: zbu_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 24.836 uJ | 42.221 GOPS/W\n  - iter 5: meshRows: 16 -> 32, meshColumns: 16 -> 32, granule_size: 16 -> 32\n      -> EQUIV_FAILED | NOT MEASURED: the repair agent found it cannot work here: The kernel `spmm.c` is not DIM-generic: it defines `DIM_ = SPMM_DIM` (the block size at which `prep_matrices.py` materialised the sparse A for `workload = dnn512`, hard-coded to **16** in `spmm_data.h:10`) and then uses `DIM_` for DRAM pointer arithmetic and strides while using the elaborated hardware `DIM` (from `gemmini_params.h:9`, now **32**) for scr\n  - iter 8: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 20.951 uJ | 50.049 GOPS/W\n  - iter 9: sp_capacity_kb: 128 -> 64\n      -> ADMIT_FRONT | 50,862 cyc | 18.502 uJ | 56.675 GOPS/W\n  - iter 10: granule_size: 16 -> 8\n      -> ADMIT_FRONT | 50,862 cyc | 16.722 uJ | 62.706 GOPS/W\n  - iter 11: granule_size: 8 -> 4\n      -> ADMIT_FRONT | 50,862 cyc | 15.832 uJ | 66.23 GOPS/W\n\n  state hashes already in the archive: 19f116cd, 2025eba7, 57db9c2e, 82f7573c, 86a3cde0, 89ac2f58, 8f3d9c1e, b26ea9c6, c2799ffd\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result.\n\nYOUR PREDICTION vs THE MEASUREMENT: time better -> measured flat (+0.0%); energy better -> measured flat (+0.0%); area flat -> measured flat (+0.0%); fmax flat -> measured flat (+0.0%). 2 of 4 right this time, 27 of 32 across the run."
+    },
+    {
+      "iteration": 13,
+      "state": "374f0e64cddd3af6",
+      "mutation": {
+        "has_normalizations": [
+          true,
+          false
+        ]
+      },
+      "verdict": "T0_ILLEGAL",
+      "reason": "the repair agent found it cannot work here: The mutation is the design field `has_normalizations`, moved `true -> false` (`SparseCraftParams.scala:205`, with the marker/comment block starting at line 67). The violated rule is `fusion.no_materialised_S`, whose condition in the T0 table is stated as an invariant, not an inequality: **`has_normalizations` stays `true`**. There is no coupled field in the rule \u2014 it names exactly one field and one required value \u2014 and the mutated field is boolean, so the direction rule's escape hatch (\"move `f` to a legal value *strictly between* `p` and `q`\") has an empty candidate set: the only legal value is the parent value. Raising or lowering `sp_capacity_kb`, `acc_capacity_kb`, the array dimensions, `k_chunk`, `b_blocks` or any ZBU/gating lever cannot satisfy a rule that does not reference them; the proposer's mechanism (deleting the `Normalizer` reduction tree, stat contexts and reciprocal ..."
+    },
+    {
+      "iteration": 14,
+      "state": "001ff69835c91c2e",
+      "mutation": {
+        "granule_size": [
+          4,
+          2
+        ]
+      },
+      "verdict": "T0_ILLEGAL",
+      "reason": "the repair agent found it cannot work here: The `zbu.bitmap_budget` rule is **scale-invariant in every lever I have**, so `granule_size = 2` is unconditionally illegal at INT8, not illegal merely for this capacity. Working the rule's own arithmetic: - `sp_rows = sp_capacity_kb*8192 / (dim*8)` = `64*8192/(16*8)` = **4096** rows - bitmap bits = `sp_rows * (dim/granule_size)` = `4096 * (16/2)` = **32768** bits (exactly the number the harness reported) - budget = 5% of `sp_capacity_kb*8192` = `0.05 * 524288` = **26214.4** bits \u2192 violated by **1.25x** Substituting the first line into the second, the bitmap is `sp_capacity_kb*8192/(dim*8) * dim/granule_size = sp_capacity_kb*1024/granule_size` bits, while the budget is `sp_capacity_kb*409.6` bits. **Both `sp_capacity_kb` and `dim` cancel**, so the rule reduces to `granule_size >= 1024/409.6 = 2.5`, independent of scratchpad capacity, banking and array size. Raising `sp_capacity_kb` (the ..."
+    },
+    {
+      "iteration": 15,
+      "state": "50e1c38bc56ab67e",
+      "mutation": {
+        "acc_capacity_kb": [
+          64,
+          32
+        ]
+      },
+      "cycles": 50862,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 14.73,
+      "power_W": 0.1448,
+      "perf_GOPS": 10.308,
+      "perf_per_watt_GOPS_W": 71.188,
+      "mac_efficiency": 0.0625,
+      "area_um2": 3115203,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "balanced, no single bottleneck (exe_active=0.75, dma_wait=0.01): the array is neither starved nor saturated, so resizing a resource that already fits will not move cycles. Change the MECHANISM (T-A / T-B scope, granularity, operand), or remove capacity the software schedule no longer needs\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 32.235 uJ | 32.53 GOPS/W\n  - iter 3: gate_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 4: zbu_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 24.836 uJ | 42.221 GOPS/W\n  - iter 5: meshRows: 16 -> 32, meshColumns: 16 -> 32, granule_size: 16 -> 32\n      -> EQUIV_FAILED | NOT MEASURED: the repair agent found it cannot work here: The kernel `spmm.c` is not DIM-generic: it defines `DIM_ = SPMM_DIM` (the block size at which `prep_matrices.py` materialised the sparse A for `workload = dnn512`, hard-coded to **16** in `spmm_data.h:10`) and then uses `DIM_` for DRAM pointer arithmetic and strides while using the elaborated hardware `DIM` (from `gemmini_params.h:9`, now **32**) for scr\n  - iter 8: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 20.951 uJ | 50.049 GOPS/W\n  - iter 9: sp_capacity_kb: 128 -> 64\n      -> ADMIT_FRONT | 50,862 cyc | 18.502 uJ | 56.675 GOPS/W\n  - iter 10: granule_size: 16 -> 8\n      -> ADMIT_FRONT | 50,862 cyc | 16.722 uJ | 62.706 GOPS/W\n  - iter 11: granule_size: 8 -> 4\n      -> ADMIT_FRONT | 50,862 cyc | 15.832 uJ | 66.23 GOPS/W\n  - iter 12: b_blocks: 0 -> 4\n      -> ADMIT_FRONT | 50,862 cyc | 15.832 uJ | 66.23 GOPS/W\n  - iter 13: has_normalizations: True -> False\n      -> T0_ILLEGAL | NOT MEASURED: the repair agent found it cannot work here: The mutation is the design field `has_normalizations`, moved `true -> false` (`SparseCraftParams.scala:205`, with the marker/comment block starting at line 67). The violated rule is `fusion.no_materialised_S`, whose condition in the T0 table is stated as an invariant, not an inequality: **`has_normalizations` stays `true`**. There is no coupled field in \n  - iter 14: granule_size: 4 -> 2\n      -> T0_ILLEGAL | NOT MEASURED: the repair agent found it cannot work here: The `zbu.bitmap_budget` rule is **scale-invariant in every lever I have**, so `granule_size = 2` is unconditionally illegal at INT8, not illegal merely for this capacity. Working the rule's own arithmetic: - `sp_rows = sp_capacity_kb*8192 / (dim*8)` = `64*8192/(16*8)` = **4096** rows - bitmap bits = `sp_rows * (dim/granule_size)` = `4096 * (16/2)` = **32\n\n  state hashes already in the archive: 001ff698, 19f116cd, 2025eba7, 374f0e64, 57db9c2e, 82f7573c, 86a3cde0, 89ac2f58, 8f3d9c1e, b26ea9c6, c2799ffd, e9ff7d9f\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result.\n\nYOUR PREDICTION vs THE MEASUREMENT: time worse -> measured flat (+0.0%); energy better -> measured better (-7.0%); area better -> measured better (-5.0%); fmax flat -> measured flat (+0.0%). 3 of 4 right this time, 30 of 36 across the run."
+    }
+  ],
+  "front": [
+    {
+      "state": "50e1c38bc56ab67e",
+      "t": 101724.0,
+      "E": 14729697.334366903,
+      "A": 3115203.422403
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "iterations": [
+    {
+      "iteration": 1,
+      "state": "57db9c2e428dc22f",
+      "mutation": {},
+      "cycles": 106650,
+      "verdict": "ADMIT_FRONT",
+      "energy_uJ": 95.673,
+      "power_W": 0.4485,
+      "perf_GOPS": 4.916,
+      "perf_per_watt_GOPS_W": 10.96,
+      "mac_efficiency": 0.0625,
+      "area_um2": 4034991,
+      "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+      "diagnosis": "array idle (exe_active=0.39), scratchpad-wait dominated (spad=1,095,453 vs rs_full=601,048) -- lever L1 tiling or L3 capacity. NOTE bank COUNT alone has been ineffective here."
+    }
+  ],
+  "front": [
+    {
+      "state": "57db9c2e428dc22f",
+      "t": 213300.0,
+      "E": 95673387.66951826,
+      "A": 4034991.4720030003
+    }
+  ]
+}

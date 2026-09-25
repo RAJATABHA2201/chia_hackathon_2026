@@ -1,0 +1,1145 @@
+head ip: 10.1.73.56
+
+[1m== preflight 1/2: can we reach the model?[0m
+backend      claude  (claude_cli)
+model        claude-opus-5
+endpoint     (provider default)
+cli          /home/rajatabha/bin/claude
+credential   oauth  (logged in (team), /home/rajatabha/.claude/.credentials.json)
+flags        --tools  --strict-mcp-config --setting-sources  --disable-slash-commands --effort high
+
+chia backend constructs OK
+calling claude-opus-5 ...
+model replied: 'READY'
+
+OK  claude/claude-opus-5 is reachable. The loop can run:
+      scripts/run.sh --iters 5
+
+[1m== preflight 2/2: is the toolchain reachable?[0m
+==============================================================================
+SparseCraft setup report
+==============================================================================
+  host           64 cores / 61.9 GB RAM  -> at most 5 concurrent elaboration(s)
+  disk free      1477.9 GB
+  engine         /usr/bin/podman  (podman version 4.9.4-rhel)
+  docker shim    /home/rajatabha/bin/docker
+  python         3.10.19  env=chia_env
+  ray / chia     2.54.0 / (no __version__)
+  vertex ADC     /home/rajatabha/.config/gcloud/application_default_credentials.json
+
+status    tier / resource                                      image
+------------------------------------------------------------------------------
+OK        N30/N31 elaborate + N32 kernel build  (resource: chipyard) chia-chisel-build:latest
+OK        N50 T2a simulate  (resource: verilator_run)          chia-verilator-run:latest
+OK        standalone cross-compile  (resource: riscv_build)    chia-riscv-cross:latest
+OK        N10 agentic proposer  (resource: llm)                chia-opencode:latest
+OK        N52 T3 synthesis  (resource: hammer)                 sparsecraft-synth:latest
+
+resources requested by the code vs advertised by configs/cluster.yaml:
+  + chipyard           requested by diff_nodes.py, nodes.py
+  + hammer             requested by synth_node.py
+  + verilator_run      requested by nodes.py
+
+  T2 (simulate)  : READY
+  T3 (synthesis) : READY
+  agentic (LLM)  : READY
+
+[1m== running 15 iterations[0m
+proposer: claude/claude-opus-5  credential=(oauth login)
+workload: 512x512 x 64  nnz=8,192  nz_blocks=512  in-block density=0.062  dense_mode=False
+2026-09-25 09:22:55,108	INFO worker.py:1810 -- Connecting to existing Ray cluster at address: 10.1.73.56:6379...
+2026-09-25 09:22:55,131	INFO worker.py:2004 -- Connected to Ray cluster. View the dashboard at [1m[32m127.0.0.1:8265 [39m[22m
+2026-09-25 09:22:55,134	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/agent.py'.
+2026-09-25 09:22:55,135	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_e3ca1bcf2b8d4e98.zip' (0.03MiB) to Ray cluster...
+2026-09-25 09:22:55,135	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_e3ca1bcf2b8d4e98.zip'.
+2026-09-25 09:22:55,136	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/candidates.py'.
+2026-09-25 09:22:55,136	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_98813e888649685d.zip' (0.01MiB) to Ray cluster...
+2026-09-25 09:22:55,136	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_98813e888649685d.zip'.
+2026-09-25 09:22:55,136	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/constants.py'.
+2026-09-25 09:22:55,137	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_ae2667d7f60ce780.zip' (0.02MiB) to Ray cluster...
+2026-09-25 09:22:55,137	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_ae2667d7f60ce780.zip'.
+2026-09-25 09:22:55,137	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/design_state.py'.
+2026-09-25 09:22:55,138	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_42252fdfe000eee6.zip' (0.02MiB) to Ray cluster...
+2026-09-25 09:22:55,138	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_42252fdfe000eee6.zip'.
+2026-09-25 09:22:55,138	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/diff_nodes.py'.
+2026-09-25 09:22:55,139	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_57f8639322925393.zip' (0.01MiB) to Ray cluster...
+2026-09-25 09:22:55,139	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_57f8639322925393.zip'.
+2026-09-25 09:22:55,139	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/loop.py'.
+2026-09-25 09:22:55,140	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_052471d80346b108.zip' (0.15MiB) to Ray cluster...
+2026-09-25 09:22:55,140	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_052471d80346b108.zip'.
+2026-09-25 09:22:55,140	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/metrics.py'.
+2026-09-25 09:22:55,140	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_d636bc8bd907f330.zip' (0.01MiB) to Ray cluster...
+2026-09-25 09:22:55,141	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_d636bc8bd907f330.zip'.
+2026-09-25 09:22:55,141	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/nodes.py'.
+2026-09-25 09:22:55,141	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_1b1036155377b2ae.zip' (0.03MiB) to Ray cluster...
+2026-09-25 09:22:55,141	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_1b1036155377b2ae.zip'.
+2026-09-25 09:22:55,142	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/pareto.py'.
+2026-09-25 09:22:55,142	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_54ed7c778e3572aa.zip' (0.01MiB) to Ray cluster...
+2026-09-25 09:22:55,142	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_54ed7c778e3572aa.zip'.
+2026-09-25 09:22:55,142	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/proposers.py'.
+2026-09-25 09:22:55,143	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_886f3a79c922c07c.zip' (0.01MiB) to Ray cluster...
+2026-09-25 09:22:55,143	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_886f3a79c922c07c.zip'.
+2026-09-25 09:22:55,143	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/recovery.py'.
+2026-09-25 09:22:55,144	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_313a6db8b0e370a0.zip' (0.02MiB) to Ray cluster...
+2026-09-25 09:22:55,144	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_313a6db8b0e370a0.zip'.
+2026-09-25 09:22:55,144	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/rtl_scaffold.py'.
+2026-09-25 09:22:55,144	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_950379b99196f0a3.zip' (0.02MiB) to Ray cluster...
+2026-09-25 09:22:55,144	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_950379b99196f0a3.zip'.
+2026-09-25 09:22:55,145	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/synth_node.py'.
+2026-09-25 09:22:55,145	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_6929ff624b7e085d.zip' (0.03MiB) to Ray cluster...
+2026-09-25 09:22:55,145	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_6929ff624b7e085d.zip'.
+2026-09-25 09:22:55,146	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/synth_recipe.py'.
+2026-09-25 09:22:55,146	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_ca4977cbbd9e6309.zip' (0.02MiB) to Ray cluster...
+2026-09-25 09:22:55,146	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_ca4977cbbd9e6309.zip'.
+2026-09-25 09:22:55,146	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/t0_legality.py'.
+2026-09-25 09:22:55,146	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_73faa76d29927177.zip' (0.02MiB) to Ray cluster...
+2026-09-25 09:22:55,147	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_73faa76d29927177.zip'.
+2026-09-25 09:22:55,147	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/t1_model.py'.
+2026-09-25 09:22:55,147	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_e0c0bebb14236d6e.zip' (0.02MiB) to Ray cluster...
+2026-09-25 09:22:55,147	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_e0c0bebb14236d6e.zip'.
+2026-09-25 09:22:55,148	INFO packaging.py:691 -- Creating a file package for local module '/home/chia-sparsecraft/sparsecraft-v2/src/zbu_model.py'.
+2026-09-25 09:22:55,148	INFO packaging.py:463 -- Pushing file package 'gcs://_ray_pkg_bd3746fdf4d23511.zip' (0.01MiB) to Ray cluster...
+2026-09-25 09:22:55,148	INFO packaging.py:476 -- Successfully pushed file package 'gcs://_ray_pkg_bd3746fdf4d23511.zip'.
+/home/rajatabha/miniforge3/envs/chia_env/lib/python3.10/site-packages/ray/_private/worker.py:2052: FutureWarning: Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var if num_gpus=0 or num_gpus=None (default). To enable this behavior and turn off this error message, set RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
+  warnings.warn(
+cache policy: run (bypass_cache.yaml) -- reusing exact-hash hits from THIS RUN only
+[33m(raylet)[0m It looks like you're creating a detached actor in an anonymous namespace. In order to access this actor in the future, you will need to explicitly connect to this namespace with ray.init(namespace="2f5886a8-5aa6-48c8-b2ad-332f15749ada", ...)
+/home/rajatabha/miniforge3/envs/chia_env/lib/python3.10/site-packages/pydantic_settings/sources/utils.py:47: IncompleteFieldDefinitionWarning: Field 'lifespan' has an incomplete definition: its annotation contains an unresolved forward reference, so settings sources may fail to correctly resolve its value. Call `model_rebuild()` on the model where the field is defined, once all the referenced types are defined.
+  warnings.warn(
+sparsecraft_edit started at 10.1.73.56:8000 on node 6496e8bd04015192cce12200255a49a158558e241c59a14ecb69dc5d
+[36m(_ToolServerActor pid=25390)[0m INFO:     Started server process [25390]
+[36m(_ToolServerActor pid=25390)[0m INFO:     Waiting for application startup.
+[36m(_ToolServerActor pid=25390)[0m INFO:     Application startup complete.
+[36m(_ToolServerActor pid=25390)[0m INFO:     Uvicorn running on http://10.1.73.56:8000 (Press CTRL+C to quit)
+[36m(_ToolServerActor pid=267076)[0m ERROR:    [Errno 98] error while attempting to bind on address ('10.1.73.56', 8000): address already in use
+[36m(_ToolServerActor pid=267076)[0m INFO:     Waiting for application shutdown.
+[36m(_ToolServerActor pid=267076)[0m INFO:     Application shutdown complete.
+[36m(_ToolServerActor pid=267076)[0m ERROR:    [Errno 98] error while attempting to bind on address ('10.1.73.56', 8000): address already in use
+[36m(_ToolServerActor pid=267076)[0m INFO:     Waiting for application shutdown.
+[36m(_ToolServerActor pid=267076)[0m INFO:     Application shutdown complete.
+[36m(_ToolServerActor pid=267076)[0m ERROR:    [Errno 98] error while attempting to bind on address ('10.1.73.56', 8000): address already in use
+[36m(_ToolServerActor pid=267076)[0m INFO:     Waiting for application shutdown.
+[36m(_ToolServerActor pid=267076)[0m INFO:     Application shutdown complete.
+[36m(_ToolServerActor pid=267076)[0m INFO:     Started server process [267076][32m [repeated 4x across cluster] (Ray deduplicates logs by default. Set RAY_DEDUP_LOGS=0 to disable log deduplication, or see https://docs.ray.io/en/master/ray-observability/user-guides/configure-logging.html#log-deduplication for more options.)[0m
+[36m(_ToolServerActor pid=267076)[0m INFO:     Waiting for application startup.[32m [repeated 4x across cluster][0m
+[36m(_ToolServerActor pid=267076)[0m INFO:     Application startup complete.[32m [repeated 4x across cluster][0m
+[36m(_ToolServerActor pid=267076)[0m INFO:     Uvicorn running on http://10.1.73.56:8001 (Press CTRL+C to quit)
+[36m(_ToolServerActor pid=267076)[0m INFO:     Uvicorn running on http://10.1.73.56:8001 (Press CTRL+C to quit)
+[36m(_ToolServerActor pid=267076)[0m INFO:     Uvicorn running on http://10.1.73.56:8001 (Press CTRL+C to quit)
+sparsecraft_status started at 10.1.73.56:8001 on node 4d846e27e44fe5e4fe8e2d05b71cecf1b6470aeb35eb647888b26b8c
+[36m(_ToolServerActor pid=267195)[0m ERROR:    [Errno 98] error while attempting to bind on address ('10.1.73.56', 8000): address already in use
+[36m(_ToolServerActor pid=267195)[0m INFO:     Waiting for application shutdown.
+[36m(_ToolServerActor pid=267195)[0m INFO:     Application shutdown complete.
+[36m(_ToolServerActor pid=267195)[0m ERROR:    [Errno 98] error while attempting to bind on address ('10.1.73.56', 8000): address already in use
+[36m(_ToolServerActor pid=267195)[0m INFO:     Waiting for application shutdown.
+[36m(_ToolServerActor pid=267195)[0m INFO:     Application shutdown complete.
+[36m(_ToolServerActor pid=267195)[0m ERROR:    [Errno 98] error while attempting to bind on address ('10.1.73.56', 8000): address already in use
+[36m(_ToolServerActor pid=267195)[0m INFO:     Waiting for application shutdown.
+[36m(_ToolServerActor pid=267195)[0m INFO:     Application shutdown complete.
+[36m(_ToolServerActor pid=267195)[0m ERROR:    [Errno 98] error while attempting to bind on address ('10.1.73.56', 8001): address already in use
+[36m(_ToolServerActor pid=267195)[0m INFO:     Waiting for application shutdown.
+[36m(_ToolServerActor pid=267195)[0m INFO:     Application shutdown complete.
+[36m(_ToolServerActor pid=267195)[0m INFO:     Started server process [267195][32m [repeated 6x across cluster][0m
+[36m(_ToolServerActor pid=267195)[0m INFO:     Waiting for application startup.[32m [repeated 6x across cluster][0m
+[36m(_ToolServerActor pid=267195)[0m INFO:     Application startup complete.[32m [repeated 6x across cluster][0m
+[36m(_ToolServerActor pid=267195)[0m ERROR:    [Errno 98] error while attempting to bind on address ('10.1.73.56', 8001): address already in use
+[36m(_ToolServerActor pid=267195)[0m INFO:     Waiting for application shutdown.
+[36m(_ToolServerActor pid=267195)[0m INFO:     Application shutdown complete.
+[36m(_ToolServerActor pid=267195)[0m ERROR:    [Errno 98] error while attempting to bind on address ('10.1.73.56', 8001): address already in use
+[36m(_ToolServerActor pid=267195)[0m INFO:     Waiting for application shutdown.
+[36m(_ToolServerActor pid=267195)[0m INFO:     Application shutdown complete.
+[36m(_ToolServerActor pid=267195)[0m INFO:     Uvicorn running on http://10.1.73.56:8002 (Press CTRL+C to quit)
+[36m(_ToolServerActor pid=267195)[0m INFO:     Uvicorn running on http://10.1.73.56:8002 (Press CTRL+C to quit)
+[36m(_ToolServerActor pid=267195)[0m INFO:     Started server process [267195][32m [repeated 4x across cluster][0m
+[36m(_ToolServerActor pid=267195)[0m INFO:     Waiting for application startup.[32m [repeated 4x across cluster][0m
+[36m(_ToolServerActor pid=267195)[0m INFO:     Application startup complete.[32m [repeated 4x across cluster][0m
+[36m(_ToolServerActor pid=267195)[0m INFO:     Uvicorn running on http://10.1.73.56:8002 (Press CTRL+C to quit)
+sparsecraft_history started at 10.1.73.56:8002 on node 4d846e27e44fe5e4fe8e2d05b71cecf1b6470aeb35eb647888b26b8c
+prompt: system/microarchitect.md   18,181 chars  sha256 f7087d1fc6397225  (proposer system)
+prompt: task/propose.md             8,691 chars  sha256 7d47aa6c6d827cec  (proposer work order (template))
+prompt: system/repairer.md         40,263 chars  sha256 075357f5d9c24d59  (repairer system)
+prompt: task/repair.md              1,621 chars  sha256 d85f9bd9fc0d1c48  (repairer work order (template))
+repair: ON, budget 3/iteration
+tree reset: clean state - no diff to apply
+  seeded baseline: wrote generators/gemmini/chipyard/SparseCraftConfigs.scala, generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala, generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala, generators/gemmini/src/main/scala/gemmini/PE.scala, generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala, generators/gemmini/src/main/scala/gemmini/CounterFile.scala, generators/gemmini/src/main/scala/gemmini/ExecuteController.scala, generators/gemmini/src/main/scala/gemmini/Scratchpad.scala, generators/gemmini/software/gemmini-rocc-tests/include/gemmini_counter.h for state 57db9c2e428dc22f
+[36m(reset_and_apply_diff pid=25389)[0m HEAD is now at 4ab72313 Merge remote-tracking branch 'origin/main' into chia_artifact
+[36m(reset_and_apply_diff pid=25389)[0m HEAD is now at 8c3f992 Merge pull request #392 from ucb-bar/modular
+[36m(reset_and_apply_diff pid=25389)[0m Removing chipyard/SparseCraftConfigs.scala
+[36m(reset_and_apply_diff pid=25389)[0m Removing src/main/scala/gemmini/SparseCraftParams.scala
+[36m(reset_and_apply_diff pid=25389)[0m Removing src/main/scala/gemmini/SparseCraftRTL.scala
+[36m(reset_and_apply_diff pid=25389)[0m Removing src/main/scala/gemmini/SparseCraftSparsity.scala
+[36m(reset_and_apply_diff pid=25389)[0m HEAD is now at 7c540b3 fix counter test & gemmini_params.h
+[36m(reset_and_apply_diff pid=25389)[0m HEAD is now at 4ab72313 Merge remote-tracking branch 'origin/main' into chia_artifact
+[36m(reset_and_apply_diff pid=25389)[0m HEAD is now at 8c3f992 Merge pull request #392 from ucb-bar/modular
+[36m(reset_and_apply_diff pid=25389)[0m Removing chipyard/SparseCraftConfigs.scala
+[36m(reset_and_apply_diff pid=25389)[0m Removing src/main/scala/gemmini/SparseCraftParams.scala
+[36m(reset_and_apply_diff pid=25389)[0m Removing src/main/scala/gemmini/SparseCraftRTL.scala
+[36m(reset_and_apply_diff pid=25389)[0m Removing src/main/scala/gemmini/SparseCraftSparsity.scala
+[36m(reset_and_apply_diff pid=25389)[0m HEAD is now at 7c540b3 fix counter test & gemmini_params.h
+RESUMED v2-final15 at iteration 8: parent 86a3cde04902574e  front=3  seen=5  history=5 (every admission replayed and matched)
+
+======================================================================
+iteration 8  parent=86a3cde04902574e  front=3  niches=1
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49574 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49574 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49574 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49574 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49584 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49588 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49602 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49180 - "POST /sparsecraft_edit/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49180 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49180 - "POST /sparsecraft_edit/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49180 - "GET /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49184 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49194 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49196 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54234 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54234 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54234 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54234 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54236 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54246 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54262 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49574 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49574 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49574 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49574 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49584 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49588 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49602 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54234 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54234 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54234 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54234 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54236 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54246 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54262 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49574 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49574 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49574 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49574 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49584 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49588 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:49602 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54234 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54234 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54234 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54234 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54236 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54246 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54262 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49184 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:52108 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:41898 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:34158 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:59726 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:59726 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:59726 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+  N13 move=HW  hw=['sp_capacity_kb']  sw=[]
+  --------------------------------------------------------------
+  AGENT PROPOSAL (iteration 8)
+    [HW ] sp_capacity_kb               256 -> 128
+    [RTL] Chisel files rewritten by the agent:
+           generators/gemmini/src/main/scala/gemmini/CounterFile.scala
+           generators/gemmini/src/main/scala/gemmini/ExecuteController.scala
+           generators/gemmini/src/main/scala/gemmini/PE.scala
+           generators/gemmini/src/main/scala/gemmini/Scratchpad.scala
+           generators/gemmini/chipyard/SparseCraftConfigs.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala
+  --------------------------------------------------------------
+  SIMULATING  workload=dnn512  512x512x64  nnz=8,192  nz_blocks=512/1024  (sparse walk)
+              array=16x16  spad=128KB/4b  acc=64KB  tlb=4  k_chunk=16 b_blocks=0  gate=True zbu=True
+  N13 RTL params regenerated: gate=True zbu=True
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/CounterFile.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/ExecuteController.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/PE.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/Scratchpad.scala
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	include/gemmini_counter.h
+[36m(collect_diff pid=25389)[0m M	include/gemmini_params.h
+  N12 compile OK
+  N22 T1 predicts bound_by=memory  area=1,150,603um2
+  N12b netlist c100d23d9153c02c (655 files)
+  N52 T3 synthesis dispatched; runs in parallel with the simulation
+  N50 measured cycles=50,862  off-chip=327,680B
+  N41 equivalence OK (0 mismatches)
+  N52 T3 joined the parallel synthesis (dispatched 19.5 min ago, waited 0.0 min)
+  N52 timing REJECTED: slack=-5072.5ns vs 2.0ns target (fmax 0.197MHz implausible); using the target period for energy
+  N52 T3 nangate45: area=2,558,691um2 cells=2,196,925 fmax=0.2MHz
+  N53 energy=20.95 uJ  power=0.2060 W  perf=10.31 GOPS  perf/W=50.05 GOPS/W  [T1_MODEL]
+      mac_eff=6.2% (useful/issued)  breakdown mac/sram/dram = 2/64/34%
+  N10 prediction: 3/4 objectives right (run: 13/16)
+  N60 ADMIT_FRONT  front=1  niches=1
+  ================================================================
+  ITERATION 8 RESULTS          value        vs baseline
+    cycles                    50,862     2.10x
+    energy                  20.95 uJ     4.57x   [T1_MODEL]
+    power                   0.2060 W
+    perf/W               50.05 GOPS/W     4.57x
+    area                    3.537 mm2     1.14x   [T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE]
+    off-chip bytes           327,680
+  ================================================================
+
+======================================================================
+iteration 9  parent=2025eba76f198cbe  front=1  niches=1
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57460 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57460 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57460 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57460 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57466 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57472 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57488 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46072 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46072 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46072 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46072 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46080 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46084 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46090 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57460 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57460 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57460 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57460 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57466 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57472 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57488 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46072 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46072 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46072 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46072 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46080 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46084 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46090 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:48312 - "POST /sparsecraft_edit/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:48312 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:48312 - "POST /sparsecraft_edit/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:48312 - "GET /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:48328 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:48330 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:48332 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57460 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57460 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57460 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57460 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57466 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57472 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:57488 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46072 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46072 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46072 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46072 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46080 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46084 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:46090 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:48328 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:48328 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:48328 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:56446 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54436 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54436 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:54436 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:59378 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:59378 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:39162 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+  N13 move=HW  hw=['sp_capacity_kb']  sw=[]
+  --------------------------------------------------------------
+  AGENT PROPOSAL (iteration 9)
+    [HW ] sp_capacity_kb               128 -> 64
+    [RTL] Chisel files rewritten by the agent:
+           generators/gemmini/src/main/scala/gemmini/CounterFile.scala
+           generators/gemmini/src/main/scala/gemmini/ExecuteController.scala
+           generators/gemmini/src/main/scala/gemmini/PE.scala
+           generators/gemmini/src/main/scala/gemmini/Scratchpad.scala
+           generators/gemmini/chipyard/SparseCraftConfigs.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala
+  --------------------------------------------------------------
+  SIMULATING  workload=dnn512  512x512x64  nnz=8,192  nz_blocks=512/1024  (sparse walk)
+              array=16x16  spad=64KB/4b  acc=64KB  tlb=4  k_chunk=16 b_blocks=0  gate=True zbu=True
+  N13 RTL params regenerated: gate=True zbu=True
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/CounterFile.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/ExecuteController.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/PE.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/Scratchpad.scala
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	include/gemmini_counter.h
+[36m(collect_diff pid=25389)[0m M	include/gemmini_params.h
+  N12 compile OK
+  N22 T1 predicts bound_by=memory  area=812,263um2
+  N12b netlist 8fa4c2496d8a3f4f (655 files)
+  N52 T3 synthesis dispatched; runs in parallel with the simulation
+  N50 measured cycles=50,862  off-chip=327,680B
+  N41 equivalence OK (0 mismatches)
+  N52 T3 joined the parallel synthesis (dispatched 22.7 min ago, waited 0.0 min)
+  N52 timing REJECTED: slack=-4995.1ns vs 2.0ns target (fmax 0.200MHz implausible); using the target period for energy
+  N52 T3 nangate45: area=2,513,046um2 cells=2,166,776 fmax=0.2MHz
+  N53 energy=18.50 uJ  power=0.1819 W  perf=10.31 GOPS  perf/W=56.67 GOPS/W  [T1_MODEL]
+      mac_eff=6.2% (useful/issued)  breakdown mac/sram/dram = 2/59/39%
+  N10 prediction: 4/4 objectives right (run: 17/20)
+  N60 ADMIT_FRONT  front=1  niches=1
+  ================================================================
+  ITERATION 9 RESULTS          value        vs baseline
+    cycles                    50,862     2.10x
+    energy                  18.50 uJ     5.17x   [T1_MODEL]
+    power                   0.1819 W
+    perf/W               56.67 GOPS/W     5.17x
+    area                    3.165 mm2     1.27x   [T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE]
+    off-chip bytes           327,680
+  ================================================================
+
+======================================================================
+iteration 10  parent=8f3d9c1e0dbc51a6  front=1  niches=1
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:60522 - "POST /sparsecraft_edit/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:60522 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:60522 - "POST /sparsecraft_edit/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:60522 - "GET /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:60536 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:60552 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:60566 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40756 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40756 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40756 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40756 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40760 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40768 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40782 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56614 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56614 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56614 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56614 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56620 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56622 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56636 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40756 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40756 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40756 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40756 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40760 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40768 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40782 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56614 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56614 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56614 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56614 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56620 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56622 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56636 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40756 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40756 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40756 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40756 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40760 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40768 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40782 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56614 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56614 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56614 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56614 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56620 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56622 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56636 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:60536 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:51408 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49148 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:33660 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:34314 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49240 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:43892 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:40932 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:40932 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:36574 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+  N13 move=HW  hw=['granule_size']  sw=[]
+  --------------------------------------------------------------
+  AGENT PROPOSAL (iteration 10)
+    [RTL] granule_size                 16 -> 8
+    [RTL] Chisel files rewritten by the agent:
+           generators/gemmini/src/main/scala/gemmini/CounterFile.scala
+           generators/gemmini/src/main/scala/gemmini/ExecuteController.scala
+           generators/gemmini/src/main/scala/gemmini/PE.scala
+           generators/gemmini/src/main/scala/gemmini/Scratchpad.scala
+           generators/gemmini/chipyard/SparseCraftConfigs.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala
+  --------------------------------------------------------------
+  SIMULATING  workload=dnn512  512x512x64  nnz=8,192  nz_blocks=512/1024  (sparse walk)
+              array=16x16  spad=64KB/4b  acc=64KB  tlb=4  k_chunk=16 b_blocks=0  gate=True zbu=True
+  N13 RTL params regenerated: gate=True zbu=True
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/CounterFile.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/ExecuteController.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/PE.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/Scratchpad.scala
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	include/gemmini_counter.h
+[36m(collect_diff pid=25389)[0m M	include/gemmini_params.h
+  N12 compile OK
+  N22 T1 predicts bound_by=memory  area=814,809um2
+  N12b netlist 244affe53f67fe90 (655 files)
+  N52 T3 synthesis dispatched; runs in parallel with the simulation
+  N50 measured cycles=50,862  off-chip=327,680B
+  N41 equivalence OK (0 mismatches)
+  N52 T3 joined the parallel synthesis (dispatched 19.7 min ago, waited 0.0 min)
+  N52 timing REJECTED: slack=-4995.1ns vs 2.0ns target (fmax 0.200MHz implausible); using the target period for energy
+  N52 T3 nangate45: area=2,552,495um2 cells=2,195,086 fmax=0.2MHz
+  N53 energy=16.72 uJ  power=0.1644 W  perf=10.31 GOPS  perf/W=62.71 GOPS/W  [T1_MODEL]
+      mac_eff=6.2% (useful/issued)  breakdown mac/sram/dram = 2/55/43%
+  N10 prediction: 4/4 objectives right (run: 21/24)
+  N60 ADMIT_FRONT  front=2  niches=1
+  ================================================================
+  ITERATION 10 RESULTS          value        vs baseline
+    cycles                    50,862     2.10x
+    energy                  16.72 uJ     5.72x   [T1_MODEL]
+    power                   0.1644 W
+    perf/W               62.71 GOPS/W     5.72x
+    area                    3.204 mm2     1.26x   [T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE]
+    off-chip bytes           327,680
+  ================================================================
+
+======================================================================
+iteration 11  parent=c2799ffd9bff3bf6  front=2  niches=1
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41842 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57126 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41842 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41842 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41842 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41842 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41856 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57126 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57126 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57126 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57126 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57132 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57134 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57140 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41860 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41872 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:51864 - "POST /sparsecraft_edit/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:51864 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:51864 - "POST /sparsecraft_edit/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:51864 - "GET /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:51872 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:51874 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:51886 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41842 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41842 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41842 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41842 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41856 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41860 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41872 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57126 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57126 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57126 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57126 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57132 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57134 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57140 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41842 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41842 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41842 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41856 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41860 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:41872 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57126 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57126 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57126 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57132 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57134 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:57140 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:51872 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:33894 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:33894 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:33894 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:45850 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:55500 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:55500 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:55500 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/CounterFile.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/ExecuteController.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/PE.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/Scratchpad.scala
+  N13 move=HW  hw=['granule_size']  sw=[]
+  --------------------------------------------------------------
+  AGENT PROPOSAL (iteration 11)
+    [RTL] granule_size                 8 -> 4
+    [RTL] Chisel files rewritten by the agent:
+           generators/gemmini/src/main/scala/gemmini/CounterFile.scala
+           generators/gemmini/src/main/scala/gemmini/ExecuteController.scala
+           generators/gemmini/src/main/scala/gemmini/PE.scala
+           generators/gemmini/src/main/scala/gemmini/Scratchpad.scala
+           generators/gemmini/chipyard/SparseCraftConfigs.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala
+  --------------------------------------------------------------
+  SIMULATING  workload=dnn512  512x512x64  nnz=8,192  nz_blocks=512/1024  (sparse walk)
+              array=16x16  spad=64KB/4b  acc=64KB  tlb=4  k_chunk=16 b_blocks=0  gate=True zbu=True
+  N13 RTL params regenerated: gate=True zbu=True
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	include/gemmini_counter.h
+[36m(collect_diff pid=25389)[0m M	include/gemmini_params.h
+  N12 compile OK
+  N22 T1 predicts bound_by=memory  area=819,902um2
+  N12b netlist ef337f86ed2d29e9 (655 files)
+  N52 T3 synthesis dispatched; runs in parallel with the simulation
+  N50 measured cycles=50,862  off-chip=327,680B
+  N41 equivalence OK (0 mismatches)
+  N52 T3 joined the parallel synthesis (dispatched 22.6 min ago, waited 0.0 min)
+  N52 timing REJECTED: slack=-4995.1ns vs 2.0ns target (fmax 0.200MHz implausible); using the target period for energy
+  N52 T3 nangate45: area=2,626,510um2 cells=2,240,000 fmax=0.2MHz
+  N53 energy=15.83 uJ  power=0.1556 W  perf=10.31 GOPS  perf/W=66.23 GOPS/W  [T1_MODEL]
+      mac_eff=6.2% (useful/issued)  breakdown mac/sram/dram = 2/52/46%
+  N10 prediction: 4/4 objectives right (run: 25/28)
+  N60 ADMIT_FRONT  front=3  niches=1
+  ================================================================
+  ITERATION 11 RESULTS          value        vs baseline
+    cycles                    50,862     2.10x
+    energy                  15.83 uJ     6.04x   [T1_MODEL]
+    power                   0.1556 W
+    perf/W               66.23 GOPS/W     6.04x
+    area                    3.278 mm2     1.23x   [T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE]
+    off-chip bytes           327,680
+  ================================================================
+
+======================================================================
+iteration 12  parent=82f7573cd3b35315  front=3  niches=1
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:50752 - "POST /sparsecraft_edit/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:50752 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:50752 - "POST /sparsecraft_edit/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51396 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51396 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51396 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51396 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51404 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51410 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51424 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52308 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52308 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52308 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52308 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52316 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52324 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52332 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51396 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51396 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51396 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51396 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51404 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51410 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51424 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52308 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52308 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52308 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52308 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52316 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52324 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52332 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51396 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51396 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51396 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51396 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51404 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51410 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:51424 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52308 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52308 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52308 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52308 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52316 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52324 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:52332 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:50752 - "GET /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:50766 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:50770 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:50786 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:50766 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:47288 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:47302 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56678 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56678 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:56678 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:36438 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:36438 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:36438 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/CounterFile.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/ExecuteController.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/PE.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/Scratchpad.scala
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	include/gemmini_counter.h
+[36m(collect_diff pid=25389)[0m M	include/gemmini_params.h
+  N13 move=SW  hw=[]  sw=['b_blocks']
+  --------------------------------------------------------------
+  AGENT PROPOSAL (iteration 12)
+    [SW ] b_blocks                     0 -> 4
+    [RTL] Chisel files rewritten by the agent:
+           generators/gemmini/src/main/scala/gemmini/CounterFile.scala
+           generators/gemmini/src/main/scala/gemmini/ExecuteController.scala
+           generators/gemmini/src/main/scala/gemmini/PE.scala
+           generators/gemmini/src/main/scala/gemmini/Scratchpad.scala
+           generators/gemmini/chipyard/SparseCraftConfigs.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala
+  --------------------------------------------------------------
+  SIMULATING  workload=dnn512  512x512x64  nnz=8,192  nz_blocks=512/1024  (sparse walk)
+              array=16x16  spad=64KB/4b  acc=64KB  tlb=4  k_chunk=16 b_blocks=4  gate=True zbu=True
+  N13 RTL params regenerated: gate=True zbu=True
+  N12 compile OK
+  N22 T1 predicts bound_by=memory  area=819,902um2
+BYPASS elaborate (data=None, provider=True)
+[36m(BYPASS_elaborate pid=25389)[0m [BYPASS] cache_provider (tag=hwsrc:a031510fa037fe84+rtl84989734da20874a@t16)
+  N12b netlist ef337f86ed2d29e9 (655 files)
+  N52 T3 synthesis dispatched; runs in parallel with the simulation
+  N50 measured cycles=50,862  off-chip=327,680B
+  N41 equivalence OK (0 mismatches)
+  N52 T3 joined the parallel synthesis (dispatched 22.1 min ago, waited 0.0 min)
+  N52 timing REJECTED: slack=-4995.1ns vs 2.0ns target (fmax 0.200MHz implausible); using the target period for energy
+  N52 T3 nangate45: area=2,626,510um2 cells=2,240,000 fmax=0.2MHz
+  N53 energy=15.83 uJ  power=0.1556 W  perf=10.31 GOPS  perf/W=66.23 GOPS/W  [T1_MODEL]
+      mac_eff=6.2% (useful/issued)  breakdown mac/sram/dram = 2/52/46%
+  N10 prediction: 2/4 objectives right (run: 27/32)
+  N60 ADMIT_FRONT  front=4  niches=1
+  ================================================================
+  ITERATION 12 RESULTS          value        vs baseline
+    cycles                    50,862     2.10x
+    energy                  15.83 uJ     6.04x   [T1_MODEL]
+    power                   0.1556 W
+    perf/W               66.23 GOPS/W     6.04x
+    area                    3.278 mm2     1.23x   [T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE]
+    off-chip bytes           327,680
+  ================================================================
+
+======================================================================
+iteration 13  parent=e9ff7d9f9521f550  front=4  niches=1
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55864 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55864 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55864 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55864 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55872 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55884 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55896 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44238 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44238 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44238 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44238 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44240 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44246 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44260 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55864 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55864 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55864 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55864 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55872 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55884 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55896 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44238 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44238 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44238 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44238 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44240 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44246 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44260 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55864 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55864 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55864 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55864 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55872 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55884 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:55896 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44238 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44238 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44238 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44238 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44240 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44246 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:44260 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42340 - "POST /sparsecraft_edit/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42340 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42340 - "POST /sparsecraft_edit/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42340 - "GET /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42344 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42352 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42364 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42344 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:48360 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40424 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40424 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:40424 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:57312 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:57318 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:59238 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:59254 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:55428 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:55428 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:60994 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:60994 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:60994 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:60994 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:39984 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:39984 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:39984 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:39984 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+  N13 move=HW  hw=['has_normalizations']  sw=[]
+  --------------------------------------------------------------
+  AGENT PROPOSAL (iteration 13)
+    [HW ] has_normalizations           True -> False
+    [RTL] Chisel files rewritten by the agent:
+           generators/gemmini/src/main/scala/gemmini/CounterFile.scala
+           generators/gemmini/src/main/scala/gemmini/ExecuteController.scala
+           generators/gemmini/src/main/scala/gemmini/PE.scala
+           generators/gemmini/src/main/scala/gemmini/Scratchpad.scala
+           generators/gemmini/chipyard/SparseCraftConfigs.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala
+  --------------------------------------------------------------
+  SIMULATING  workload=dnn512  512x512x64  nnz=8,192  nz_blocks=512/1024  (sparse walk)
+              array=16x16  spad=64KB/4b  acc=64KB  tlb=4  k_chunk=16 b_blocks=4  gate=True zbu=True
+  N20 T0 FAIL: ['fusion.no_materialised_S: has_normalizations=false leaves no hardware softmax (NormCmd.MAX/SUM_EXP/INV_SUM_EXP), so S would have to be materialised']
+  N73 repair attempt 1/3 (verdict=T0_ILLEGAL, class=t0)
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/CounterFile.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/ExecuteController.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/PE.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/Scratchpad.scala
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	include/gemmini_counter.h
+[36m(collect_diff pid=25389)[0m M	include/gemmini_params.h
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52764 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55150 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52764 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55150 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:54110 - "POST /sparsecraft_edit/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:54110 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:54110 - "POST /sparsecraft_edit/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:54110 - "GET /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:54124 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:54126 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:54142 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52764 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52764 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52764 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52764 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52776 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52780 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52788 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55150 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55150 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55150 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55150 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55154 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55158 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55168 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52764 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52764 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52764 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52776 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52780 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52788 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55150 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55150 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55150 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55154 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55158 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55168 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52764 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52764 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52764 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52776 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52780 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:52788 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55150 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55150 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55150 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55154 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55158 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:55168 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:52488 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+  N73 repairer reported status=NOT_ACTIONABLE confidence=5
+  => T0_ILLEGAL stands after 1 repair attempt(s): repairer reported NOT_ACTIONABLE; tree rolled back to parent e9ff7d9f9521f550
+
+======================================================================
+iteration 14  parent=e9ff7d9f9521f550  front=4  niches=1
+[36m(reset_and_apply_diff pid=25389)[0m HEAD is now at 4ab72313 Merge remote-tracking branch 'origin/main' into chia_artifact
+[36m(reset_and_apply_diff pid=25389)[0m HEAD is now at 8c3f992 Merge pull request #392 from ucb-bar/modular
+[36m(reset_and_apply_diff pid=25389)[0m Removing chipyard/SparseCraftConfigs.scala
+[36m(reset_and_apply_diff pid=25389)[0m Removing src/main/scala/gemmini/SparseCraftParams.scala
+[36m(reset_and_apply_diff pid=25389)[0m Removing src/main/scala/gemmini/SparseCraftRTL.scala
+[36m(reset_and_apply_diff pid=25389)[0m Removing src/main/scala/gemmini/SparseCraftSparsity.scala
+[36m(reset_and_apply_diff pid=25389)[0m HEAD is now at 7c540b3 fix counter test & gemmini_params.h
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33178 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38800 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33178 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38800 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:47636 - "POST /sparsecraft_edit/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:47636 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:47636 - "POST /sparsecraft_edit/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:47636 - "GET /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:47644 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:47650 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:47662 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33178 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33178 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33178 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33178 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33186 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33188 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33204 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38800 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38800 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38800 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38800 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38808 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38820 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38836 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33178 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33178 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33178 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33178 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33186 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33188 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33204 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38800 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38800 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38800 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38800 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38808 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38820 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38836 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33178 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33178 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33186 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33188 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:33204 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38800 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38800 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38808 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38820 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:38836 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:59916 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:45610 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:41268 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:41268 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:52904 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:55538 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:56708 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:56708 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:56708 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+  N13 move=HW  hw=['granule_size']  sw=[]
+  --------------------------------------------------------------
+  AGENT PROPOSAL (iteration 14)
+    [RTL] granule_size                 4 -> 2
+    [RTL] Chisel files rewritten by the agent:
+           generators/gemmini/src/main/scala/gemmini/CounterFile.scala
+           generators/gemmini/src/main/scala/gemmini/ExecuteController.scala
+           generators/gemmini/src/main/scala/gemmini/PE.scala
+           generators/gemmini/src/main/scala/gemmini/Scratchpad.scala
+           generators/gemmini/chipyard/SparseCraftConfigs.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala
+  --------------------------------------------------------------
+  SIMULATING  workload=dnn512  512x512x64  nnz=8,192  nz_blocks=512/1024  (sparse walk)
+              array=16x16  spad=64KB/4b  acc=64KB  tlb=4  k_chunk=16 b_blocks=4  gate=True zbu=True
+  N20 T0 FAIL: ['zbu.bitmap_budget: bitmap 32768 bits exceeds 5% of scratchpad (64KB) -- granule too fine']
+  N73 repair attempt 1/3 (verdict=T0_ILLEGAL, class=t0)
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/CounterFile.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/ExecuteController.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/PE.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/Scratchpad.scala
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	include/gemmini_counter.h
+[36m(collect_diff pid=25389)[0m M	include/gemmini_params.h
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47312 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47312 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47312 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47312 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47324 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47340 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47352 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35362 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35362 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35362 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35362 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35366 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35382 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35386 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47312 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47312 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47312 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47312 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47324 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47340 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47352 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35362 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35362 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35362 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35362 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35366 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35382 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35386 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49084 - "POST /sparsecraft_edit/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49084 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49084 - "POST /sparsecraft_edit/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49084 - "GET /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49100 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49106 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:49116 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47312 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47312 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47312 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47312 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47324 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47340 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:47352 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35362 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35362 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35362 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35362 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35366 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35382 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:35386 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:43738 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+  N73 repairer reported status=NOT_ACTIONABLE confidence=5
+  => T0_ILLEGAL stands after 1 repair attempt(s): repairer reported NOT_ACTIONABLE; tree rolled back to parent e9ff7d9f9521f550
+
+======================================================================
+iteration 15  parent=e9ff7d9f9521f550  front=4  niches=1
+[36m(reset_and_apply_diff pid=25389)[0m HEAD is now at 4ab72313 Merge remote-tracking branch 'origin/main' into chia_artifact
+[36m(reset_and_apply_diff pid=25389)[0m HEAD is now at 8c3f992 Merge pull request #392 from ucb-bar/modular
+[36m(reset_and_apply_diff pid=25389)[0m Removing chipyard/SparseCraftConfigs.scala
+[36m(reset_and_apply_diff pid=25389)[0m Removing src/main/scala/gemmini/SparseCraftParams.scala
+[36m(reset_and_apply_diff pid=25389)[0m Removing src/main/scala/gemmini/SparseCraftRTL.scala
+[36m(reset_and_apply_diff pid=25389)[0m Removing src/main/scala/gemmini/SparseCraftSparsity.scala
+[36m(reset_and_apply_diff pid=25389)[0m HEAD is now at 7c540b3 fix counter test & gemmini_params.h
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42896 - "POST /sparsecraft_edit/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42896 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42896 - "POST /sparsecraft_edit/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42896 - "GET /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42908 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42924 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:42926 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36598 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36598 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36598 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36598 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36602 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36616 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36624 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36598 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36598 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36598 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36598 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36602 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36616 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36624 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51270 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51270 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51270 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51270 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51284 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51294 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51300 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51270 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51270 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51270 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51270 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51284 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51294 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51300 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36598 - "POST /sparsecraft_status/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36598 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36598 - "POST /sparsecraft_status/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36598 - "GET /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36602 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36616 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267076)[0m INFO:     10.1.73.56:36624 - "POST /sparsecraft_status/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51270 - "POST /sparsecraft_history/mcp HTTP/1.1" 400 Bad Request
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51270 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51270 - "POST /sparsecraft_history/mcp HTTP/1.1" 202 Accepted
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51270 - "GET /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51284 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51294 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=267195)[0m INFO:     10.1.73.56:51300 - "POST /sparsecraft_history/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:53924 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:39988 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:45114 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+[36m(_ToolServerActor pid=25390)[0m INFO:     10.1.73.56:45114 - "POST /sparsecraft_edit/mcp HTTP/1.1" 200 OK
+  N13 move=HW  hw=['acc_capacity_kb']  sw=[]
+  --------------------------------------------------------------
+  AGENT PROPOSAL (iteration 15)
+    [HW ] acc_capacity_kb              64 -> 32
+    [RTL] Chisel files rewritten by the agent:
+           generators/gemmini/src/main/scala/gemmini/CounterFile.scala
+           generators/gemmini/src/main/scala/gemmini/ExecuteController.scala
+           generators/gemmini/src/main/scala/gemmini/PE.scala
+           generators/gemmini/src/main/scala/gemmini/Scratchpad.scala
+           generators/gemmini/chipyard/SparseCraftConfigs.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala
+           generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala
+  --------------------------------------------------------------
+  SIMULATING  workload=dnn512  512x512x64  nnz=8,192  nz_blocks=512/1024  (sparse walk)
+              array=16x16  spad=64KB/4b  acc=32KB  tlb=4  k_chunk=16 b_blocks=4  gate=True zbu=True
+  N13 RTL params regenerated: gate=True zbu=True
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/CounterFile.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/ExecuteController.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/PE.scala
+[36m(collect_diff pid=25389)[0m M	src/main/scala/gemmini/Scratchpad.scala
+[36m(collect_diff pid=25389)[0m Unstaged changes after reset:
+[36m(collect_diff pid=25389)[0m M	include/gemmini_counter.h
+[36m(collect_diff pid=25389)[0m M	include/gemmini_params.h
+  N12 compile OK
+  N22 T1 predicts bound_by=memory  area=652,005um2
+  N12b netlist b2ae463814db36e3 (655 files)
+  N52 T3 synthesis dispatched; runs in parallel with the simulation
+  N50 measured cycles=50,862  off-chip=327,680B
+  N41 equivalence OK (0 mismatches)
+  N52 T3 joined the parallel synthesis (dispatched 20.0 min ago, waited 0.0 min)
+  N52 timing REJECTED: slack=-4995.1ns vs 2.0ns target (fmax 0.200MHz implausible); using the target period for energy
+  N52 T3 nangate45: area=2,626,279um2 cells=2,239,662 fmax=0.2MHz
+  N53 energy=14.73 uJ  power=0.1448 W  perf=10.31 GOPS  perf/W=71.19 GOPS/W  [T1_MODEL]
+      mac_eff=6.2% (useful/issued)  breakdown mac/sram/dram = 3/48/49%
+  N10 prediction: 3/4 objectives right (run: 30/36)
+  N60 ADMIT_FRONT  front=1  niches=1
+  ================================================================
+  ITERATION 15 RESULTS          value        vs baseline
+    cycles                    50,862     2.10x
+    energy                  14.73 uJ     6.50x   [T1_MODEL]
+    power                   0.1448 W
+    perf/W               71.19 GOPS/W     6.50x
+    area                    3.115 mm2     1.30x   [T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE]
+    off-chip bytes           327,680
+  ================================================================
+
+======================================================================
+final Pareto front (1):
+  {'state': '50e1c38bc56ab67e', 't': 101724.0, 'E': 14729697.334366903, 'A': 3115203.422403}
+hypervolume vs baseline: 8.307e+18
+traces: /home/chia-sparsecraft/sparsecraft-v2/runs/v2-final15
+[36m(_ToolServerActor pid=25390)[0m INFO:     Shutting down
+[36m(_ToolServerActor pid=267195)[0m INFO:     Started server process [267195]
+[36m(_ToolServerActor pid=267195)[0m INFO:     Waiting for application startup.
+[36m(_ToolServerActor pid=267195)[0m INFO:     Application startup complete.
+[36m(_ToolServerActor pid=25390)[0m INFO:     Waiting for application shutdown.
+[36m(_ToolServerActor pid=25390)[0m INFO:     Application shutdown complete.
+[36m(_ToolServerActor pid=25390)[0m INFO:     Finished server process [25390]
+[36m(_ToolServerActor pid=267195)[0m INFO:     Shutting down[32m [repeated 6x across cluster][0m
+[36m(_ToolServerActor pid=267195)[0m INFO:     Waiting for application shutdown.[32m [repeated 6x across cluster][0m
+[36m(_ToolServerActor pid=267195)[0m INFO:     Application shutdown complete.[32m [repeated 6x across cluster][0m
+[36m(_ToolServerActor pid=267195)[0m INFO:     Finished server process [267195][32m [repeated 6x across cluster][0m
+
+[1m== loop finished (exit 0)[0m
+traces: runs/v2-final15/

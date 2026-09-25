@@ -1,0 +1,294 @@
+{
+  "iteration": 4,
+  "manifest": {
+    "src/t0_legality.py": "bf6e9cc944e1ba89",
+    "src/pareto.py": "bf02a7c026d31592",
+    "src/t1_model.py": "5f47289476612fd0",
+    "src/metrics.py": "9c6265e3c8d6a401",
+    "kernels/spmm.c": "9479b9070ff6e4fa",
+    "objective_weights": "340f0716bd727cd5"
+  },
+  "parent_hash": "b26ea9c6a9a656ff",
+  "weights_hash": "340f0716bd727cd5",
+  "seed": 0,
+  "strategy": {
+    "label": "compute",
+    "modules": [
+      "strategy/nm-structured.md"
+    ]
+  },
+  "candidates": [
+    {
+      "technique": "T-B",
+      "change": "Turned on the ZBU (`// SPARSECRAFT zbu_enable = 0 -> 1`), granule 16, operand A, T-A left enabled.",
+      "rationale": "",
+      "predicted": {
+        "time": "flat",
+        "energy": "better",
+        "area": "worse",
+        "fmax": "flat"
+      },
+      "implemented": true
+    },
+    {
+      "technique": "T-B",
+      "change": "zbu_enable: 0 -> 1, granule 16 (= DIM = one scratchpad row), operand A, with a 2-stage hazard-guarded detector",
+      "rationale": "~20.6 uJ of the remaining 30.1 uJ is scratchpad SRAM traffic, and A is 93.75% zero, so a large fraction of A row reads need never leave the SRAM",
+      "predicted": {
+        "time": "flat",
+        "energy": "better",
+        "area": "worse"
+      },
+      "implemented": false
+    },
+    {
+      "technique": "CONFIG",
+      "change": "sp_capacity_kb: 256 -> 128, k_chunk: 16 -> 8",
+      "rationale": "halves the SRAM array whose reads are now the dominant energy term, paying cycles for area+energy; bounded by x_resident=1 needing 2,048 rows, so it likely fails T0 unless x_resident is dropped",
+      "predicted": {
+        "time": "worse",
+        "energy": "better",
+        "area": "better"
+      },
+      "implemented": false
+    },
+    {
+      "technique": "T-C",
+      "change": "2:4 operand mux on the streaming operand ahead of MacUnit in PE.scala",
+      "rationale": "would guarantee density offline, but MAC_GATED_TOTAL says the data is already 93.75% zero -- far sparser than 2:4 -- so N:M would force work T-A already skips for free; listed to be explicitly rejected, not proposed",
+      "predicted": {
+        "time": "flat",
+        "energy": "worse",
+        "area": "worse"
+      },
+      "implemented": false
+    }
+  ],
+  "prediction": {
+    "time": "flat",
+    "energy": "better",
+    "area": "worse",
+    "fmax": "flat"
+  },
+  "llm_returncode": 0,
+  "touched_paths": [
+    "generators/gemmini/src/main/scala/gemmini/CounterFile.scala",
+    "generators/gemmini/src/main/scala/gemmini/ExecuteController.scala",
+    "generators/gemmini/src/main/scala/gemmini/PE.scala",
+    "generators/gemmini/src/main/scala/gemmini/Scratchpad.scala",
+    "generators/gemmini/chipyard/SparseCraftConfigs.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_counter.h",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_params.h"
+  ],
+  "diff_bytes": 27716,
+  "state_hash": "86a3cde04902574e",
+  "state": {
+    "meshRows": 16,
+    "meshColumns": 16,
+    "tileRows": 1,
+    "tileColumns": 1,
+    "dataflow": "WS",
+    "sp_capacity_kb": 256,
+    "acc_capacity_kb": 64,
+    "sp_banks": 4,
+    "acc_banks": 2,
+    "spad_read_delay": 4,
+    "acc_latency": 2,
+    "max_in_flight_mem_reqs": 64,
+    "dma_maxbytes": 64,
+    "dma_buswidth": 128,
+    "tlb_size": 4,
+    "ld_queue_length": 8,
+    "st_queue_length": 2,
+    "ex_queue_length": 8,
+    "reservation_station_entries_ld": 8,
+    "reservation_station_entries_st": 4,
+    "reservation_station_entries_ex": 16,
+    "has_normalizations": true,
+    "mvin_scale_shared": false,
+    "num_counter": 8,
+    "gate_enable": true,
+    "zbu_enable": true,
+    "granule_size": 16,
+    "zbu_operand": "A",
+    "workload": "dnn512",
+    "dense_mode": false,
+    "k_chunk": 16,
+    "x_resident": true,
+    "b_blocks": 0,
+    "a_blocks": 1
+  },
+  "hw_hash": "75b6c2101e9aad5c",
+  "move": {
+    "class": "HW",
+    "hw_fields": [
+      "zbu_enable"
+    ],
+    "sw_fields": [],
+    "n_changed": 1,
+    "changed": {
+      "zbu_enable": [
+        true,
+        false
+      ]
+    },
+    "forces_elaboration": true
+  },
+  "rtl_digest": "8e66fcac843da4a3",
+  "n12_compile": {
+    "ok": true,
+    "rc": 0
+  },
+  "t1_prediction": {
+    "cycles": 81928.0,
+    "bound_by": "memory",
+    "bytes_offchip": 1310848,
+    "sram_bytes": 327680,
+    "metadata_bytes": 128,
+    "eta_balance": 1.0,
+    "kv_refetch": 1.0,
+    "area_um2": 1827282.8240896002,
+    "period_ns": 1.244,
+    "time_ns": 101918.432,
+    "energy_pj": 51504939.66951826
+  },
+  "netlist_digest": "b2a52d191b1b1d1f",
+  "netlist_files": 655,
+  "metrics": {
+    "cycles": 79433,
+    "macs_useful": 524288,
+    "counters": {
+      "macs_issued": 8388608,
+      "tiles_issued": 512,
+      "nz_blocks": 512,
+      "total_blocks": 1024,
+      "dense_mode": 0,
+      "M": 512,
+      "K": 512,
+      "N": 64,
+      "dim": 16,
+      "nnz": 8192,
+      "equiv_mismatches": 0,
+      "equiv_first_i": -1,
+      "equiv_first_j": -1,
+      "equiv_got": 0,
+      "equiv_want": 0,
+      "checksum": -7297,
+      "EXE_ACTIVE_CYCLE": 71114,
+      "LOAD_DMA_WAIT_CYCLE": 235,
+      "SCRATCHPAD_A_WAIT_CYCLE": 485209,
+      "SCRATCHPAD_B_WAIT_CYCLE": 493571,
+      "RESERVATION_STATION_FULL_CYCLES": 574029,
+      "MAC_GATED_TOTAL": 7864320,
+      "RDMA_BYTES_REC": 196608,
+      "WDMA_BYTES_SENT": 131072,
+      "done": 1
+    },
+    "derived": {
+      "bytes_offchip": 327680,
+      "dma_wait_fraction": 0.003,
+      "conflict_stall_fraction": 12.3221,
+      "exe_active_fraction": 0.8953
+    }
+  },
+  "equiv_mismatches": 0,
+  "t3_synthesis": {
+    "success": true,
+    "top_module": "Gemmini",
+    "technology": "nangate45",
+    "area_um2": 2647407.294003,
+    "power_total_w": 632.0186,
+    "power_internal_w": 300.5787,
+    "power_switching_w": 331.384,
+    "power_leakage_w": 0.05598442,
+    "power_activity_source": "default",
+    "power_activity": null,
+    "sta_tail": "OpenSTA 2.3.1 4f13a213e1 Copyright (c) 2021, Parallax Software, Inc.\nLicense GPLv3: GNU GPL version 3 <http://gnu.org/licenses/gpl.html>\n\nThis is free software, and you are free to change and redistribute it\nunder certain conditions; type `show_copying' for details. \nThis program comes with ABSOLUTELY NO WARRANTY; for details type `show_warranty'.\nWarning: /tmp/sparsecraft_syn/recipe/Gemmini.mapped.v line 9323768, module mem_ext not found. Creating black box for mem_ext.\nWarning: /tmp/sparsecraft_syn/recipe/Gemmini.mapped.v line 9323798, module mem_0_ext not found. Creating black box for mem_0_ext.\nSPARSECRAFT_STA clocked _f05c1ad245560000_p_Port\nStartpoint: tlb/_1410_ (rising edge-triggered flip-flop clocked by core_clk)\nEndpoint: spad/reader/xactTracker/_85417_\n          (rising edge-triggered flip-flop clocked by core_clk)\nPath Group: core_clk\nPath Type: max\n\n    Delay      Time   Description\n-------------------------------------------------------------\n   0.0000    0.0000   clock core_clk (rise edge)\n   0.0000    0.0000   clock network delay (propagated)\n   0.0000    0.0000 ^ tlb/_1410_/CK (DFF_X1)\n   0.3359    0.3360 ^ tlb/_1410_/Q (DFF_X1)\n   0.0244    0.3604 v tlb/tlbArbOpt/_092_/ZN (INV_X1)\n   0.6433    1.0037 ^ tlb/tlbArbOpt/_095_/ZN (AOI21_X1)\n   1.4838    2.4876 v tlb/tlbArbOpt/_134_/ZN (OAI21_X1)\n   0.1977    2.6852 ^ tlb/tlbs_0/tlb/_2412_/ZN (NOR2_X1)\n   0.0403    2.7255 v tlb/tlbs_0/tlb/_2418_/ZN (OAI211_X1)\n   0.0373    2.7628 ^ tlb/tlbs_0/tlb/_2428_/ZN (NOR2_X1)\n   0.0230    2.7858 v tlb/tlbs_0/tlb/_2449_/ZN (NAND3_X1)\n   0.0169    2.8028 ^ tlb/tlbs_0/tlb/_2450_/ZN (NAND2_X1)\n   0.0397    2.8425 v tlb/tlbs_0/tlb/_2451_/ZN (NAND3_X1)\n   0.1475    2.9900 ^ tlb/tlbs_0/tlb/_2452_/ZN (INV_X1)\n   0.0207    3.0107 v tlb/tlbs_0/tlb/_3126_/ZN (NAND2_X1)\n   0.0801    3.0908 ^ tlb/tlbs_0/tlb/_3129_/ZN (NAND4_X1)\n   0.0938    3.1847 ^ tlb/tlbs_0/tlb/_3189_/ZN (OR2_X1)\n   0.0161    3.2008 v tlb/_0783_/ZN (INV_X1)\n   0.1384    3.3391 ^ tlb/_0821_/ZN (OAI21_X1)\n   0.0061    3.3452 v spad/reader/core/_2665_/ZN (INV_X1)\n   5.8106    9.1558 ^ spad/reader/core/_2666_/ZN (AOI21_X1)\n  -0.3593    8.7965 v spad/reader/core/tlb_arb/_1018_/ZN (INV_X1)\n   0.2047    9.0013 v spad/reader/core/_2667_/ZN (AND2_X1)\n  49.0362   58.0375 ^ spad/reader/xactTracker/_59433_/ZN (NAND2_X1)\n4763.4097 4821.4473 v spad/reader/xactTracker/_59434_/ZN (INV_X1)\n 329.1316 5150.5786 ^ spad/reader/xactTracker/_60359_/ZN (NAND4_X1)\n  -8.9353 5141.6436 v spad/reader/xactTracker/_60360_/ZN (NAND2_X1)\n   0.0000 5141.6436 v spad/reader/xactTracker/_85417_/D (DFF_X1)\n          5141.6436   data arrival time\n\n   2.0000    2.0000   clock core_clk (rise edge)\n   0.0000    2.0000   clock network delay (propagated)\n   0.0000    2.0000   clock reconvergence pessimism\n             2.0000 ^ spad/reader/xactTracker/_85417_/CK (DFF_X1)\n -10.8461   -8.8461   library setup time\n            -8.8461   data required time\n-------------------------------------------------------------\n            -8.8461   data required time\n          -5141.6436   data arrival time\n-------------------------------------------------------------\n          -5150.4897   slack (VIOLATED)\n\n\nworst slack -5150.4897\nSPARSECRAFT_PWR_MODE default -1\nGroup                    Internal    Switching      Leakage        Total\n                            Power        Power        Power        Power\n------------------------------------------------------------------------\nSequential           3.290254e-01 3.127771e-02 9.708902e-03 3.700120e-01   0.1%\nCombinational        3.004236e+02 3.313633e+02 4.626973e-02 6.318331e+02 100.0%\nMacro                0.000000e+00 0.000000e+00 0.000000e+00 0.000000e+00   0.0%\nPad                  0.000000e+00 0.000000e+00 0.000000e+00 0.000000e+00   0.0%\n------------------------------------------------------------------------\nTotal                3.005787e+02 3.313840e+02 5.598442e-02 6.320186e+02 100.0%\n                            47.6%        52.4%         0.0%\n",
+    "cone_files": 154,
+    "staged_files": 647,
+    "cell_count": 2258011,
+    "seq_cells": 122654,
+    "clock_target_ns": 2.0,
+    "worst_slack_ns": -5150.4897,
+    "fmax_mhz": 0.19408093139904772,
+    "returncode": 0,
+    "dispatch": "parallel"
+  },
+  "t3_logic_um2": 2647407.294003,
+  "t3_sram_macro_um2": 1629749.2480000001,
+  "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+  "period_ns": 2.0,
+  "area_um2": 4277156.542003,
+  "energy": {
+    "energy_pj": 24835627.034474924,
+    "power_w": 0.15633066253619352,
+    "perf_gops": 6.600380194629436,
+    "perf_per_watt_gops_w": 42.22063725407242,
+    "energy_per_useful_op_pj": 23.685099634623455,
+    "mac_efficiency": 0.0625,
+    "dram_measured": true,
+    "gating_measured": true,
+    "breakdown": {
+      "mac_pj": 393216.0,
+      "sram_pj": 17233451.034474924,
+      "dram_pj": 7208960.0,
+      "mac_pct": 1.5832738970277156,
+      "sram_pct": 69.3900379907975,
+      "dram_pct": 29.026688112174785,
+      "macs_issued": 8388608,
+      "macs_useful": 524288,
+      "macs_gated": 7864320,
+      "macs_gated_opportunity": 7864320,
+      "dram_bytes": 327680,
+      "time_s": 0.00015886600000000002
+    },
+    "zbu_source": "derived"
+  },
+  "t3_power_w": 632.0186,
+  "t3_energy_pj": 100406266907.6,
+  "energy_pj": 24835627.034474924,
+  "energy_source": "T1_MODEL",
+  "power_w": 0.15633066253619352,
+  "verdict": "ADMIT_FRONT",
+  "admit_info": {
+    "reward": -2.0469533434764173,
+    "tau": 0.0,
+    "front_size": 3
+  },
+  "prediction_score": {
+    "per_objective": {
+      "time": {
+        "predicted": "flat",
+        "actual": "flat",
+        "rel": 0.0,
+        "hit": true
+      },
+      "energy": {
+        "predicted": "better",
+        "actual": "better",
+        "rel": -0.1752,
+        "hit": true
+      },
+      "area": {
+        "predicted": "worse",
+        "actual": "worse",
+        "rel": 0.042,
+        "hit": true
+      },
+      "fmax": {
+        "predicted": "flat",
+        "actual": "flat",
+        "rel": 0.0,
+        "hit": true
+      }
+    },
+    "hits": 4,
+    "scored": 4,
+    "accuracy": 1.0
+  },
+  "diagnosis": "compute bound (exe_active=0.90) -- lever L2 geometry\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 32.235 uJ | 32.53 GOPS/W\n  - iter 3: gate_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n\n  state hashes already in the archive: 57db9c2e, 89ac2f58, b26ea9c6\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result.\n\nYOUR PREDICTION vs THE MEASUREMENT: time flat -> measured flat (+0.0%); energy better -> measured better (-17.5%); area worse -> measured worse (+4.2%); fmax flat -> measured flat (+0.0%). 4 of 4 right this time, 10 of 12 across the run.",
+  "wall_clock_s": 2552.16
+}

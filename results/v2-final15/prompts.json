@@ -1,0 +1,22 @@
+{
+  "system/microarchitect.md": {
+    "role": "proposer system",
+    "chars": 18181,
+    "sha256": "f7087d1fc6397225"
+  },
+  "task/propose.md": {
+    "role": "proposer work order (template)",
+    "chars": 8691,
+    "sha256": "7d47aa6c6d827cec"
+  },
+  "system/repairer.md": {
+    "role": "repairer system",
+    "chars": 40263,
+    "sha256": "075357f5d9c24d59"
+  },
+  "task/repair.md": {
+    "role": "repairer work order (template)",
+    "chars": 1621,
+    "sha256": "d85f9bd9fc0d1c48"
+  }
+}

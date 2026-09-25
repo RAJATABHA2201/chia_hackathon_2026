@@ -1,0 +1,155 @@
+{
+  "iteration": 7,
+  "manifest": {
+    "src/t0_legality.py": "bf6e9cc944e1ba89",
+    "src/pareto.py": "bf02a7c026d31592",
+    "src/t1_model.py": "5f47289476612fd0",
+    "src/metrics.py": "9c6265e3c8d6a401",
+    "kernels/spmm.c": "9479b9070ff6e4fa",
+    "objective_weights": "340f0716bd727cd5"
+  },
+  "parent_hash": "86a3cde04902574e",
+  "weights_hash": "340f0716bd727cd5",
+  "seed": 0,
+  "strategy": {
+    "label": "compute",
+    "modules": [
+      "strategy/nm-structured.md"
+    ]
+  },
+  "candidates": [
+    {
+      "technique": "CONFIG",
+      "change": "Mesh geometry 16x16 -> 32x32 (256 -> 1,024 PEs), dataflow/tiling unchanged.",
+      "rationale": "",
+      "predicted": {
+        "time": "better",
+        "energy": "worse",
+        "area": "worse",
+        "fmax": "worse"
+      },
+      "implemented": true
+    },
+    {
+      "technique": "CONFIG",
+      "change": "`meshRows`/`meshColumns`: 16 -> 32 (`granule_size`: 16 -> 32 follows mechanically, since the ZBU contract fixes granule == scratchpad row == DIM)",
+      "rationale": "`macs_issued`/DIM\u00b2 is the mesh-occupancy floor (32,768 cyc) and measured is 79,433 at exe_active=0.8953 \u2014 no stall left to remove, so only work-per-cycle moves `t`",
+      "predicted": {
+        "time": "better",
+        "energy": "worse",
+        "area": "worse"
+      },
+      "implemented": false
+    },
+    {
+      "technique": "CONFIG",
+      "change": "`k_chunk`: 16 -> 64",
+      "rationale": "a longer accumulator-resident K-pass cuts read-modify-write sweeps of Y through the acc SRAM, part of the ~15 \u00b5J on-chip term the ZBU does not cover (it taps mvin only); costs no elaboration",
+      "predicted": {
+        "time": "flat",
+        "energy": "better",
+        "area": "flat"
+      },
+      "implemented": false
+    },
+    {
+      "technique": "T-A",
+      "change": "hoist the zero-comparator out of the PE and share one per mesh ROW \u2014 in WS the streaming operand propagates horizontally, so every PE in a row sees the same `a` and needs the same gate decision",
+      "rationale": "iteration 3 measured +69,754 \u00b5m\u00b2 for 256 per-PE comparators (~272 \u00b5m\u00b2/PE); at DIM=32 that is 1,024 comparators, and a row-shared gate cuts it to 32 while holding `MAC_GATED_TOTAL` identical",
+      "predicted": {
+        "time": "flat",
+        "energy": "flat",
+        "area": "better"
+      },
+      "implemented": false
+    }
+  ],
+  "prediction": {
+    "time": "better",
+    "energy": "worse",
+    "area": "worse",
+    "fmax": "worse"
+  },
+  "llm_returncode": 0,
+  "touched_paths": [
+    "generators/gemmini/src/main/scala/gemmini/CounterFile.scala",
+    "generators/gemmini/src/main/scala/gemmini/ExecuteController.scala",
+    "generators/gemmini/src/main/scala/gemmini/PE.scala",
+    "generators/gemmini/src/main/scala/gemmini/Scratchpad.scala",
+    "generators/gemmini/chipyard/SparseCraftConfigs.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_counter.h",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_params.h"
+  ],
+  "diff_bytes": 33301,
+  "state_hash": "19f116cdb8e2bb21",
+  "state": {
+    "meshRows": 32,
+    "meshColumns": 32,
+    "tileRows": 1,
+    "tileColumns": 1,
+    "dataflow": "WS",
+    "sp_capacity_kb": 256,
+    "acc_capacity_kb": 64,
+    "sp_banks": 4,
+    "acc_banks": 2,
+    "spad_read_delay": 4,
+    "acc_latency": 2,
+    "max_in_flight_mem_reqs": 64,
+    "dma_maxbytes": 64,
+    "dma_buswidth": 128,
+    "tlb_size": 4,
+    "ld_queue_length": 8,
+    "st_queue_length": 2,
+    "ex_queue_length": 8,
+    "reservation_station_entries_ld": 8,
+    "reservation_station_entries_st": 4,
+    "reservation_station_entries_ex": 16,
+    "has_normalizations": true,
+    "mvin_scale_shared": false,
+    "num_counter": 8,
+    "gate_enable": true,
+    "zbu_enable": true,
+    "granule_size": 32,
+    "zbu_operand": "A",
+    "workload": "dnn512",
+    "dense_mode": false,
+    "k_chunk": 16,
+    "x_resident": true,
+    "b_blocks": 0,
+    "a_blocks": 1
+  },
+  "hw_hash": "af0879a103bae133",
+  "move": {
+    "class": "HW",
+    "hw_fields": [
+      "granule_size",
+      "meshColumns",
+      "meshRows"
+    ],
+    "sw_fields": [],
+    "n_changed": 3,
+    "changed": {
+      "meshRows": [
+        32,
+        16
+      ],
+      "meshColumns": [
+        32,
+        16
+      ],
+      "granule_size": [
+        32,
+        16
+      ]
+    },
+    "forces_elaboration": true
+  },
+  "rtl_digest": "8e66fcac843da4a3",
+  "verdict": "DUPLICATE",
+  "failure_class": "unknown",
+  "failure_charged": false,
+  "wall_clock_s": 222.39
+}

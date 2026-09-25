@@ -1,0 +1,161 @@
+{
+  "iteration": 13,
+  "manifest": {
+    "src/t0_legality.py": "bf6e9cc944e1ba89",
+    "src/pareto.py": "bf02a7c026d31592",
+    "src/t1_model.py": "5f47289476612fd0",
+    "src/metrics.py": "9c6265e3c8d6a401",
+    "kernels/spmm.c": "9479b9070ff6e4fa",
+    "objective_weights": "340f0716bd727cd5"
+  },
+  "parent_hash": "e9ff7d9f9521f550",
+  "weights_hash": "340f0716bd727cd5",
+  "seed": 0,
+  "strategy": {
+    "label": "balanced",
+    "modules": [
+      "strategy/resource-sizing.md",
+      "strategy/dataflow-tiling.md"
+    ]
+  },
+  "candidates": [
+    {
+      "technique": "CONFIG",
+      "change": "`has_normalizations: true -> false`. The `Normalizer` at Scratchpad.scala:657 collapses to `is_passthru = true` (a wire), removing its 16-lane 32-bit reduction tree, its two stat contexts and its reciprocal / reciprocal-sqrt units; the LAYERNORM/IGELU/SOFTMAX legs leave the AccumulatorScale MuxCase; CONFIG_NORM leaves the StoreController decode. RELU and the ordinary scale path are preserved by the `else` branches. All ten `// SPARSECRAFT` markers reproduced unchanged, including the frozen `workload` and `dense_mode`.",
+      "rationale": "the diagnosis says remove capacity the schedule cannot reach; the kernel issues only NO_ACTIVATION/ACC_SCALE_IDENTITY, so this block is dead silicon in the measured `area_um2`",
+      "predicted": {
+        "time": "flat",
+        "energy": "flat",
+        "area": "better",
+        "fmax": "flat"
+      },
+      "implemented": true
+    },
+    {
+      "technique": "T-B",
+      "change": "`granule_size: 4 -> 2`",
+      "rationale": "the fitted 0.9375^g curve puts capture at 0.773 -> 0.879 (+10.6 pp), worth about -3% energy on the two calibrated points, but it doubles the bitmap 2 KB -> 4 KB for ~+4.6% area",
+      "predicted": {
+        "time": "flat",
+        "energy": "better",
+        "area": "worse"
+      },
+      "implemented": false
+    },
+    {
+      "technique": "T-B",
+      "change": "replace the flat `RegInit(VecInit(...))` 1024xnGran flop bitmap with a combinational-read `Mem` plus a post-reset clearing sweep and an `init_done` gate that forces `skip := false` until the sweep completes",
+      "rationale": "\"bitmap organisation\" is the one T-B axis never explored; this keeps every per-granule bit and the granularity, but targets `area_um2` directly by letting the flow map 4,096 bits/bank to a register-file array instead of resettable flops",
+      "predicted": {
+        "time": "flat",
+        "energy": "flat",
+        "area": "better"
+      },
+      "implemented": false
+    }
+  ],
+  "prediction": {
+    "time": "flat",
+    "energy": "flat",
+    "area": "better",
+    "fmax": "flat"
+  },
+  "llm_returncode": 0,
+  "touched_paths": [
+    "generators/gemmini/src/main/scala/gemmini/CounterFile.scala",
+    "generators/gemmini/src/main/scala/gemmini/ExecuteController.scala",
+    "generators/gemmini/src/main/scala/gemmini/PE.scala",
+    "generators/gemmini/src/main/scala/gemmini/Scratchpad.scala",
+    "generators/gemmini/chipyard/SparseCraftConfigs.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_counter.h",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_params.h"
+  ],
+  "diff_bytes": 36559,
+  "state_hash": "374f0e64cddd3af6",
+  "state": {
+    "meshRows": 16,
+    "meshColumns": 16,
+    "tileRows": 1,
+    "tileColumns": 1,
+    "dataflow": "WS",
+    "sp_capacity_kb": 64,
+    "acc_capacity_kb": 64,
+    "sp_banks": 4,
+    "acc_banks": 2,
+    "spad_read_delay": 4,
+    "acc_latency": 2,
+    "max_in_flight_mem_reqs": 64,
+    "dma_maxbytes": 64,
+    "dma_buswidth": 128,
+    "tlb_size": 4,
+    "ld_queue_length": 8,
+    "st_queue_length": 2,
+    "ex_queue_length": 8,
+    "reservation_station_entries_ld": 8,
+    "reservation_station_entries_st": 4,
+    "reservation_station_entries_ex": 16,
+    "has_normalizations": false,
+    "mvin_scale_shared": false,
+    "num_counter": 8,
+    "gate_enable": true,
+    "zbu_enable": true,
+    "granule_size": 4,
+    "zbu_operand": "A",
+    "workload": "dnn512",
+    "dense_mode": false,
+    "k_chunk": 16,
+    "x_resident": true,
+    "b_blocks": 4,
+    "a_blocks": 1
+  },
+  "hw_hash": "f22ca799eba8d341",
+  "move": {
+    "class": "HW",
+    "hw_fields": [
+      "has_normalizations"
+    ],
+    "sw_fields": [],
+    "n_changed": 1,
+    "changed": {
+      "has_normalizations": [
+        false,
+        true
+      ]
+    },
+    "forces_elaboration": true
+  },
+  "repair": {
+    "first_verdict": "T0_ILLEGAL",
+    "attempts": [
+      {
+        "attempt": 1,
+        "failure_class": "t0",
+        "verdict_before": "T0_ILLEGAL",
+        "status": "NOT_ACTIONABLE",
+        "confidence": 5,
+        "files": [],
+        "compiled": "NOT_RUN",
+        "verdict_after": "T0_ILLEGAL",
+        "evidence_after": "(reported NOT_ACTIONABLE; not re-evaluated)",
+        "changed": "",
+        "wall_s": 0.0,
+        "call_ok": true
+      }
+    ],
+    "budget": 3,
+    "outcome": "failed",
+    "stop_reason": "repairer reported NOT_ACTIONABLE",
+    "proposed_state_hash": "374f0e64cddd3af6"
+  },
+  "verdict": "T0_ILLEGAL",
+  "failure_class": "t0",
+  "failure_charged": false,
+  "violations": [
+    "fusion.no_materialised_S: has_normalizations=false leaves no hardware softmax (NormCmd.MAX/SUM_EXP/INV_SUM_EXP), so S would have to be materialised"
+  ],
+  "wall_clock_s": 426.18,
+  "diagnosis": "T0 rejected: fusion.no_materialised_S: has_normalizations=false leaves no hardware softmax (NormCmd.MAX/SUM_EXP/INV_SUM_EXP), so S would have to be materialised\n\nYour mutation failed at T0_ILLEGAL. 1 repair attempt(s) did not fix it (repairer reported NOT_ACTIONABLE). The tree has been ROLLED BACK to the parent design, so your change is NOT present: start from the parent.\n\nTHE REPAIR AGENT'S ROOT-CAUSE ANALYSIS (it found no fix that keeps your mechanism): The mutation is the design field `has_normalizations`, moved `true -> false` (`SparseCraftParams.scala:205`, with the marker/comment block starting at line 67). The violated rule is `fusion.no_materialised_S`, whose condition in the T0 table is stated as an invariant, not an inequality: **`has_normalizations` stays `true`**. There is no coupled field in the rule \u2014 it names exactly one field and one required value \u2014 and the mutated field is boolean, so the direction rule's escape hatch (\"move `f` to a legal value *strictly between* `p` and `q`\") has an empty candidate set: the only legal value is the parent value. Raising or lowering `sp_capacity_kb`, `acc_capacity_kb`, the array dimensions, `k_chunk`, `b_blocks` or any ZBU/gating lever cannot satisfy a rule that does not reference them; the proposer's mechanism (deleting the `Normalizer` reduction tree, stat contexts and reciprocal ...\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 32.235 uJ | 32.53 GOPS/W\n  - iter 3: gate_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 4: zbu_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 24.836 uJ | 42.221 GOPS/W\n  - iter 5: meshRows: 16 -> 32, meshColumns: 16 -> 32, granule_size: 16 -> 32\n      -> EQUIV_FAILED | NOT MEASURED: the repair agent found it cannot work here: The kernel `spmm.c` is not DIM-generic: it defines `DIM_ = SPMM_DIM` (the block size at which `prep_matrices.py` materialised the sparse A for `workload = dnn512`, hard-coded to **16** in `spmm_data.h:10`) and then uses `DIM_` for DRAM pointer arithmetic and strides while using the elaborated hardware `DIM` (from `gemmini_params.h:9`, now **32**) for scr\n  - iter 8: sp_capacity_kb: 256 -> 128\n      -> ADMIT_FRONT | 50,862 cyc | 20.951 uJ | 50.049 GOPS/W\n  - iter 9: sp_capacity_kb: 128 -> 64\n      -> ADMIT_FRONT | 50,862 cyc | 18.502 uJ | 56.675 GOPS/W\n  - iter 10: granule_size: 16 -> 8\n      -> ADMIT_FRONT | 50,862 cyc | 16.722 uJ | 62.706 GOPS/W\n  - iter 11: granule_size: 8 -> 4\n      -> ADMIT_FRONT | 50,862 cyc | 15.832 uJ | 66.23 GOPS/W\n  - iter 12: b_blocks: 0 -> 4\n      -> ADMIT_FRONT | 50,862 cyc | 15.832 uJ | 66.23 GOPS/W\n  - iter 13: has_normalizations: True -> False\n      -> T0_ILLEGAL | NOT MEASURED: the repair agent found it cannot work here: The mutation is the design field `has_normalizations`, moved `true -> false` (`SparseCraftParams.scala:205`, with the marker/comment block starting at line 67). The violated rule is `fusion.no_materialised_S`, whose condition in the T0 table is stated as an invariant, not an inequality: **`has_normalizations` stays `true`**. There is no coupled field in \n\n  state hashes already in the archive: 19f116cd, 2025eba7, 374f0e64, 57db9c2e, 82f7573c, 86a3cde0, 89ac2f58, 8f3d9c1e, b26ea9c6, c2799ffd, e9ff7d9f\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result.\n\nMOVES YOU LISTED EARLIER AND HAVE NOT TRIED. Your last change was not admitted; check these against the diagnosis before inventing a new one:\n  - iter 13: [T-B] replace the flat `RegInit(VecInit(...))` 1024xnGran flop bitmap with a combinational-read `Mem` plus a post-reset clearing sweep and an `init_done` gate that forces `skip := false` until the sweep completes -- \"bitmap organisation\" is the one T-B axis never explored; this keeps every per-granule bit and the granularity, but targets `area_um2` directly by letting the flow map 4,096 bits/bank to a register-file array instead of resettable flops\n  - iter 13: [T-B] `granule_size: 4 -> 2` -- the fitted 0.9375^g curve puts capture at 0.773 -> 0.879 (+10.6 pp), worth about -3% energy on the two calibrated points, but it doubles the bitmap 2 KB -> 4 KB for ~+4.6% area\n  - iter 12: [CONFIG (S-2)] `acc_capacity_kb: 64 -> 32`, total on-chip SRAM 128 -> 96 KB -- the energy model's sqrt(max(SRAM,32KB)/256KB) per-access scaling drops 0.707 -> 0.612, a ~13% cut on the SRAM term that is now the largest non-DRAM share"
+}

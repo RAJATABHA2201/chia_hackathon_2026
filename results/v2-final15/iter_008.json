@@ -1,0 +1,294 @@
+{
+  "iteration": 8,
+  "manifest": {
+    "src/t0_legality.py": "bf6e9cc944e1ba89",
+    "src/pareto.py": "bf02a7c026d31592",
+    "src/t1_model.py": "5f47289476612fd0",
+    "src/metrics.py": "9c6265e3c8d6a401",
+    "kernels/spmm.c": "9479b9070ff6e4fa",
+    "objective_weights": "340f0716bd727cd5"
+  },
+  "parent_hash": "86a3cde04902574e",
+  "weights_hash": "340f0716bd727cd5",
+  "seed": 0,
+  "strategy": {
+    "label": "compute",
+    "modules": [
+      "strategy/nm-structured.md"
+    ]
+  },
+  "candidates": [
+    {
+      "technique": "CONFIG",
+      "change": "`sp_capacity: CapacityInKilobytes(256) -> CapacityInKilobytes(128)`. Scratchpad SRAM 16,384 \u2192 8,192 rows (2,048/bank across sp_banks=4; power of two, multiple of DIM=16). The `SparseCraftZBU` bitmap is elaborated with n = rows-per-bank, so its flat register file halves from 4,096 to 2,048 bits per bank without any RTL edit. No ZBU or PE logic changed.",
+      "rationale": "",
+      "predicted": {
+        "time": "better",
+        "energy": "better",
+        "area": "better",
+        "fmax": "better"
+      },
+      "implemented": true
+    },
+    {
+      "technique": "CONFIG (coupled T-B half)",
+      "change": "`sp_capacity_kb: 256 -> 128`",
+      "rationale": "live working set is 3,328 rows (2,048 X-resident + 256 A + 1,024 B) of 16,384 \u2014 80% of the scratchpad macro is powered, leaked and area-charged holding nothing, and the ZBU bitmap is elaborated with n = rows/bank so it halves with it (16,384 \u2192 8,192 flops) along with the 4,096:1 mux on the read-enable path.",
+      "predicted": {
+        "time": "better",
+        "energy": "better",
+        "area": "better"
+      },
+      "implemented": false
+    },
+    {
+      "technique": "T-A",
+      "change": "delete the T-A2 accumulator-input hold (`held_c` + mux, outputType=20b per PE), keep the 8-bit `in_a` hold",
+      "rationale": "iteration 3 measured the whole gate at +69,754 \u00b5m\u00b2 (~272 \u00b5m\u00b2/PE), and ~28 of those flops per PE are the 20-bit psum hold, which only quiesces the final adder while the 8-bit hold already quiesces the 8\u00d78 multiplier \u2014 the expensive half of the gate buys the cheap half of the MAC.",
+      "predicted": {
+        "time": "flat",
+        "energy": "worse",
+        "area": "better"
+      },
+      "implemented": false
+    },
+    {
+      "technique": "CONFIG",
+      "change": "`k_chunk: 16 -> 64`",
+      "rationale": "T-B taps mvin only, so the accumulator's Y read-modify-write sweeps are untouched inside the ~20.6 \u00b5J on-chip remainder; a 4\u00d7 longer acc-resident K-pass cuts those sweeps 4\u00d7, and it needs no elaboration.",
+      "predicted": {
+        "time": "flat",
+        "energy": "better",
+        "area": "flat"
+      },
+      "implemented": false
+    }
+  ],
+  "prediction": {
+    "time": "better",
+    "energy": "better",
+    "area": "better",
+    "fmax": "better"
+  },
+  "llm_returncode": 0,
+  "touched_paths": [
+    "generators/gemmini/src/main/scala/gemmini/CounterFile.scala",
+    "generators/gemmini/src/main/scala/gemmini/ExecuteController.scala",
+    "generators/gemmini/src/main/scala/gemmini/PE.scala",
+    "generators/gemmini/src/main/scala/gemmini/Scratchpad.scala",
+    "generators/gemmini/chipyard/SparseCraftConfigs.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftParams.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftRTL.scala",
+    "generators/gemmini/src/main/scala/gemmini/SparseCraftSparsity.scala",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_counter.h",
+    "generators/gemmini/software/gemmini-rocc-tests/include/gemmini_params.h"
+  ],
+  "diff_bytes": 30874,
+  "state_hash": "2025eba76f198cbe",
+  "state": {
+    "meshRows": 16,
+    "meshColumns": 16,
+    "tileRows": 1,
+    "tileColumns": 1,
+    "dataflow": "WS",
+    "sp_capacity_kb": 128,
+    "acc_capacity_kb": 64,
+    "sp_banks": 4,
+    "acc_banks": 2,
+    "spad_read_delay": 4,
+    "acc_latency": 2,
+    "max_in_flight_mem_reqs": 64,
+    "dma_maxbytes": 64,
+    "dma_buswidth": 128,
+    "tlb_size": 4,
+    "ld_queue_length": 8,
+    "st_queue_length": 2,
+    "ex_queue_length": 8,
+    "reservation_station_entries_ld": 8,
+    "reservation_station_entries_st": 4,
+    "reservation_station_entries_ex": 16,
+    "has_normalizations": true,
+    "mvin_scale_shared": false,
+    "num_counter": 8,
+    "gate_enable": true,
+    "zbu_enable": true,
+    "granule_size": 16,
+    "zbu_operand": "A",
+    "workload": "dnn512",
+    "dense_mode": false,
+    "k_chunk": 16,
+    "x_resident": true,
+    "b_blocks": 0,
+    "a_blocks": 1
+  },
+  "hw_hash": "23d241829a5590a6",
+  "move": {
+    "class": "HW",
+    "hw_fields": [
+      "sp_capacity_kb"
+    ],
+    "sw_fields": [],
+    "n_changed": 1,
+    "changed": {
+      "sp_capacity_kb": [
+        128,
+        256
+      ]
+    },
+    "forces_elaboration": true
+  },
+  "rtl_digest": "8e66fcac843da4a3",
+  "n12_compile": {
+    "ok": true,
+    "rc": 0
+  },
+  "t1_prediction": {
+    "cycles": 81928.0,
+    "bound_by": "memory",
+    "bytes_offchip": 1310848,
+    "sram_bytes": 196608,
+    "metadata_bytes": 128,
+    "eta_balance": 1.0,
+    "kv_refetch": 1.0,
+    "area_um2": 1150602.7875737601,
+    "period_ns": 1.244,
+    "time_ns": 101918.432,
+    "energy_pj": 46431336.712934494
+  },
+  "netlist_digest": "c100d23d9153c02c",
+  "netlist_files": 655,
+  "metrics": {
+    "cycles": 50862,
+    "macs_useful": 524288,
+    "counters": {
+      "macs_issued": 8388608,
+      "tiles_issued": 512,
+      "nz_blocks": 512,
+      "total_blocks": 1024,
+      "dense_mode": 0,
+      "M": 512,
+      "K": 512,
+      "N": 64,
+      "dim": 16,
+      "nnz": 8192,
+      "equiv_mismatches": 0,
+      "equiv_first_i": -1,
+      "equiv_first_j": -1,
+      "equiv_got": 0,
+      "equiv_want": 0,
+      "checksum": -7297,
+      "EXE_ACTIVE_CYCLE": 38286,
+      "LOAD_DMA_WAIT_CYCLE": 723,
+      "SCRATCHPAD_A_WAIT_CYCLE": 488410,
+      "SCRATCHPAD_B_WAIT_CYCLE": 496909,
+      "RESERVATION_STATION_FULL_CYCLES": 545717,
+      "MAC_GATED_TOTAL": 7864320,
+      "RDMA_BYTES_REC": 196608,
+      "WDMA_BYTES_SENT": 131072,
+      "done": 1
+    },
+    "derived": {
+      "bytes_offchip": 327680,
+      "dma_wait_fraction": 0.0142,
+      "conflict_stall_fraction": 19.3724,
+      "exe_active_fraction": 0.7527
+    }
+  },
+  "equiv_mismatches": 0,
+  "t3_synthesis": {
+    "success": true,
+    "top_module": "Gemmini",
+    "technology": "nangate45",
+    "area_um2": 2558690.974003,
+    "power_total_w": 630.4385,
+    "power_internal_w": 299.0152,
+    "power_switching_w": 331.369,
+    "power_leakage_w": 0.0542026,
+    "power_activity_source": "default",
+    "power_activity": null,
+    "sta_tail": "OpenSTA 2.3.1 4f13a213e1 Copyright (c) 2021, Parallax Software, Inc.\nLicense GPLv3: GNU GPL version 3 <http://gnu.org/licenses/gpl.html>\n\nThis is free software, and you are free to change and redistribute it\nunder certain conditions; type `show_copying' for details. \nThis program comes with ABSOLUTELY NO WARRANTY; for details type `show_warranty'.\nWarning: /tmp/sparsecraft_syn/recipe/Gemmini.mapped.v line 9205112, module mem_ext not found. Creating black box for mem_ext.\nWarning: /tmp/sparsecraft_syn/recipe/Gemmini.mapped.v line 9205142, module mem_0_ext not found. Creating black box for mem_0_ext.\nSPARSECRAFT_STA clocked _40824fe51c560000_p_Port\nStartpoint: tlb/_1410_ (rising edge-triggered flip-flop clocked by core_clk)\nEndpoint: spad/reader/xactTracker/_84780_\n          (rising edge-triggered flip-flop clocked by core_clk)\nPath Group: core_clk\nPath Type: max\n\n    Delay      Time   Description\n-------------------------------------------------------------\n   0.0000    0.0000   clock core_clk (rise edge)\n   0.0000    0.0000   clock network delay (propagated)\n   0.0000    0.0000 ^ tlb/_1410_/CK (DFF_X1)\n   0.3359    0.3360 ^ tlb/_1410_/Q (DFF_X1)\n   0.0244    0.3604 v tlb/tlbArbOpt/_092_/ZN (INV_X1)\n   0.6433    1.0037 ^ tlb/tlbArbOpt/_095_/ZN (AOI21_X1)\n   1.4838    2.4876 v tlb/tlbArbOpt/_134_/ZN (OAI21_X1)\n   0.1977    2.6852 ^ tlb/tlbs_0/tlb/_2412_/ZN (NOR2_X1)\n   0.0403    2.7255 v tlb/tlbs_0/tlb/_2418_/ZN (OAI211_X1)\n   0.0373    2.7628 ^ tlb/tlbs_0/tlb/_2428_/ZN (NOR2_X1)\n   0.0230    2.7858 v tlb/tlbs_0/tlb/_2449_/ZN (NAND3_X1)\n   0.0169    2.8028 ^ tlb/tlbs_0/tlb/_2450_/ZN (NAND2_X1)\n   0.0397    2.8425 v tlb/tlbs_0/tlb/_2451_/ZN (NAND3_X1)\n   0.1475    2.9900 ^ tlb/tlbs_0/tlb/_2452_/ZN (INV_X1)\n   0.0207    3.0107 v tlb/tlbs_0/tlb/_3126_/ZN (NAND2_X1)\n   0.0801    3.0908 ^ tlb/tlbs_0/tlb/_3129_/ZN (NAND4_X1)\n   0.0938    3.1847 ^ tlb/tlbs_0/tlb/_3189_/ZN (OR2_X1)\n   0.0161    3.2008 v tlb/_0783_/ZN (INV_X1)\n   0.1384    3.3391 ^ tlb/_0821_/ZN (OAI21_X1)\n   0.0061    3.3452 v spad/reader/core/_2632_/ZN (INV_X1)\n   5.8106    9.1558 ^ spad/reader/core/_2633_/ZN (AOI21_X1)\n  -0.3593    8.7965 v spad/reader/core/tlb_arb/_1018_/ZN (INV_X1)\n   0.2047    9.0013 v spad/reader/core/_2634_/ZN (AND2_X1)\n  48.6591   57.6604 ^ spad/reader/xactTracker/_58988_/ZN (NAND2_X1)\n4690.8174 4748.4780 v spad/reader/xactTracker/_58989_/ZN (INV_X1)\n 324.1294 5072.6074 ^ spad/reader/xactTracker/_59914_/ZN (NAND4_X1)\n  -8.7989 5063.8081 v spad/reader/xactTracker/_59915_/ZN (NAND2_X1)\n   0.0000 5063.8081 v spad/reader/xactTracker/_84780_/D (DFF_X1)\n          5063.8081   data arrival time\n\n   2.0000    2.0000   clock core_clk (rise edge)\n   0.0000    2.0000   clock network delay (propagated)\n   0.0000    2.0000   clock reconvergence pessimism\n             2.0000 ^ spad/reader/xactTracker/_84780_/CK (DFF_X1)\n -10.6820   -8.6819   library setup time\n            -8.6819   data required time\n-------------------------------------------------------------\n            -8.6819   data required time\n          -5063.8081   data arrival time\n-------------------------------------------------------------\n          -5072.4902   slack (VIOLATED)\n\n\nworst slack -5072.4902\nSPARSECRAFT_PWR_MODE default -1\nGroup                    Internal    Switching      Leakage        Total\n                            Power        Power        Power        Power\n------------------------------------------------------------------------\nSequential           3.077071e-01 2.932464e-02 9.042433e-03 3.460742e-01   0.1%\nCombinational        2.988604e+02 3.313490e+02 4.514681e-02 6.302546e+02 100.0%\nMacro                0.000000e+00 0.000000e+00 0.000000e+00 0.000000e+00   0.0%\nPad                  0.000000e+00 0.000000e+00 0.000000e+00 0.000000e+00   0.0%\n------------------------------------------------------------------------\nTotal                2.990152e+02 3.313690e+02 5.420260e-02 6.304385e+02 100.0%\n                            47.4%        52.6%         0.0%\n",
+    "cone_files": 154,
+    "staged_files": 647,
+    "cell_count": 2196925,
+    "seq_cells": 114235,
+    "clock_target_ns": 2.0,
+    "worst_slack_ns": -5072.4902,
+    "fmax_mhz": 0.19706413069829162,
+    "returncode": 0,
+    "dispatch": "parallel"
+  },
+  "t3_logic_um2": 2558690.974003,
+  "t3_sram_macro_um2": 977849.5488,
+  "area_source": "T3_nangate45_logic+fakeram45_macros_TIMING_UNUSABLE",
+  "period_ns": 2.0,
+  "area_um2": 3536540.522803,
+  "energy": {
+    "energy_pj": 20951149.77084047,
+    "power_w": 0.20596073464315667,
+    "perf_gops": 10.308049231253195,
+    "perf_per_watt_gops_w": 50.0486136307132,
+    "energy_per_useful_op_pj": 19.980573435631246,
+    "mac_efficiency": 0.0625,
+    "dram_measured": true,
+    "gating_measured": true,
+    "breakdown": {
+      "mac_pj": 393216.0,
+      "sram_pj": 13348973.77084047,
+      "dram_pj": 7208960.0,
+      "mac_pct": 1.8768230111517448,
+      "sram_pct": 63.714755117732935,
+      "dram_pct": 34.40842187111532,
+      "macs_issued": 8388608,
+      "macs_useful": 524288,
+      "macs_gated": 7864320,
+      "macs_gated_opportunity": 7864320,
+      "dram_bytes": 327680,
+      "time_s": 0.000101724
+    },
+    "zbu_source": "derived"
+  },
+  "t3_power_w": 630.4385,
+  "t3_energy_pj": 64130725974.0,
+  "energy_pj": 20951149.77084047,
+  "energy_source": "T1_MODEL",
+  "power_w": 0.20596073464315667,
+  "verdict": "ADMIT_FRONT",
+  "admit_info": {
+    "reward": -0.7151927564004468,
+    "tau": 0.0,
+    "front_size": 1
+  },
+  "prediction_score": {
+    "per_objective": {
+      "time": {
+        "predicted": "better",
+        "actual": "better",
+        "rel": -0.3597,
+        "hit": true
+      },
+      "energy": {
+        "predicted": "better",
+        "actual": "better",
+        "rel": -0.1564,
+        "hit": true
+      },
+      "area": {
+        "predicted": "better",
+        "actual": "better",
+        "rel": -0.1732,
+        "hit": true
+      },
+      "fmax": {
+        "predicted": "better",
+        "actual": "flat",
+        "rel": 0.0,
+        "hit": false
+      }
+    },
+    "hits": 3,
+    "scored": 4,
+    "accuracy": 0.75
+  },
+  "diagnosis": "balanced, no single bottleneck (exe_active=0.75, dma_wait=0.01): the array is neither starved nor saturated, so resizing a resource that already fits will not move cycles. Change the MECHANISM (T-A / T-B scope, granularity, operand), or remove capacity the software schedule no longer needs\n\nALREADY EVALUATED THIS RUN. Proposing any of these again is a wasted iteration -- the harness will return DUPLICATE without measuring anything:\n  - iter 1: (no change -- baseline or duplicate)\n      -> ADMIT_FRONT | 106,650 cyc | 95.673 uJ | 10.96 GOPS/W\n  - iter 2: x_resident: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 32.235 uJ | 32.53 GOPS/W\n  - iter 3: gate_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 30.111 uJ | 34.823 GOPS/W\n  - iter 4: zbu_enable: False -> True\n      -> ADMIT_FRONT | 79,433 cyc | 24.836 uJ | 42.221 GOPS/W\n  - iter 5: meshRows: 16 -> 32, meshColumns: 16 -> 32, granule_size: 16 -> 32\n      -> EQUIV_FAILED | NOT MEASURED: the repair agent found it cannot work here: The kernel `spmm.c` is not DIM-generic: it defines `DIM_ = SPMM_DIM` (the block size at which `prep_matrices.py` materialised the sparse A for `workload = dnn512`, hard-coded to **16** in `spmm_data.h:10`) and then uses `DIM_` for DRAM pointer arithmetic and strides while using the elaborated hardware `DIM` (from `gemmini_params.h:9`, now **32**) for scr\n\n  state hashes already in the archive: 19f116cd, 57db9c2e, 86a3cde0, 89ac2f58, b26ea9c6\n  Before you answer, check that your proposal differs from EVERY line above. If the lever you want was already tried and REJECTED, either move a DIFFERENT lever or move the same one to a value not listed. Repeating a rejected value will not produce a new result.\n\nYOUR PREDICTION vs THE MEASUREMENT: time better -> measured better (-36.0%); energy better -> measured better (-15.6%); area better -> measured better (-17.3%); fmax better -> measured flat (+0.0%). 3 of 4 right this time, 13 of 16 across the run.",
+  "wall_clock_s": 1558.92
+}
