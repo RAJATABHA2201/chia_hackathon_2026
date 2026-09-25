@@ -1,3 +1,12 @@
+> **Archived: this branch is V1, the first SparseCraft loop.** The submission
+> is the second loop, on [`main`](https://github.com/RAJATABHA2201/chia_hackathon_2026/tree/main),
+> which adds iterative repair, measurable T-B zero skipping, bottleneck-driven
+> strategy selection and resumable runs. This branch is kept unchanged as the
+> baseline the second loop was built from, with the records of its final run in
+> [`results/final15/`](results/final15/). Its best design: 2.09x fewer cycles,
+> 31.3% less area, 9.8x less off-chip traffic than the Gemmini baseline, using
+> T-A zero-gated MACs.
+
 # SparseCraft — CHIA Loop v2 (walking skeleton)
 
 Agentic HW/SW co-design of sparse-attention extensions to Gemmini, built on
