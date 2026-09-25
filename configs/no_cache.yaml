@@ -1,5 +1,5 @@
 # Everything recomputed, nothing ever reused. The counterpart to
-# bypass_cache.yaml, selected by `loop.py --no-cache` (the DEFAULT; pass
+# bypass_cache.yaml, selected by `src/loop.py --no-cache` (the DEFAULT; pass
 # `--cache` for the fast-forwarding behaviour).
 #
 # WHY THIS IS THE DEFAULT, given the cache is content-addressed and provably

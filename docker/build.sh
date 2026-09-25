@@ -6,8 +6,12 @@
 # on the 70 GB root volume and a 31 GB base image blows through it.
 set -euo pipefail
 
-ROOT=/home/chia-sparsecraft
-cd "$ROOT/sparsecraft"
+# The build context is THIS checkout's root: the Dockerfile COPYs docker/...
+# paths relative to it. It used to be the hardcoded V1 tree
+# (/home/chia-sparsecraft/sparsecraft), so building from V2 silently built V1's
+# Dockerfile and helper scripts.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 export PATH="$HOME/bin:$PATH"          # the docker -> podman shim
 # NOT $ROOT/podman-tmp: that path's parent is root:chia-loop drwxrwx---, and

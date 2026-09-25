@@ -1,7 +1,7 @@
 # Synthesizing the Gemmini tile with yosys + NanGate45
 
 The working recipe, and the five blockers that had to be cleared to get it.
-Reached 2026-09-19. Supersedes the hammer path in `synth_node.py`, which fails
+Reached 2026-09-19. Supersedes the hammer path in `src/synth_node.py`, which fails
 at `fill_outputs` because yosys never produces a mapped netlist.
 
 ## Result

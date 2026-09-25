@@ -98,7 +98,7 @@ bin    | opencode                    | llm                        | npm opencode
 # binaries (SPARSECRAFT_EDA_PREFIX, SPARSECRAFT_PDK_ROOT), so they are first
 # class here and emit as "paths" / SPARSECRAFT_PATH_* rather than "tools".
 dir    | chipyard                    | chisel,synth               | ChipyardDockerfile build-setup.sh -s 4 -s 9                                  | /home/ray/chipyard                                                                                                                            | -            | -
-file   | chipyard_env                | chisel,synth               | chipyard build-setup.sh; sourced by cluster.yaml worker_env_commands         | /home/ray/chipyard/env.sh                                                                                                                      | -            | -
+file   | chipyard_env                | chisel,synth               | chipyard build-setup.sh; sourced by configs/cluster.yaml worker_env_cmds       | /home/ray/chipyard/env.sh                                                                                                                      | -            | -
 dir    | riscv_sysroot               | chisel,synth,riscv         | $RISCV -- libgloss-htif install prefix                                       | /home/ray/chipyard/.conda-env/riscv-tools:/home/ray/conda/envs/riscv-tools/riscv-tools                                                          | -            | -
 dir    | eda_prefix                  | synth                      | SparseCraftSynthDockerfile (was SPARSECRAFT_EDA_PREFIX)                      | /home/ray/eda                                                                                                                                  | -            | -
 dir    | pdk_root                    | synth                      | SparseCraftSynthDockerfile (was SPARSECRAFT_PDK_ROOT)                        | /home/ray/pdk                                                                                                                                  | -            | -
@@ -109,7 +109,7 @@ file   | nangate45_latch_map         | synth                      | docker/nanga
 dir    | sky130A                     | -                          | open_pdks.sky130a conda, only when WITH_SKY130=1                             | /home/ray/pdk/sky130A                                                                                                                          | -            | -
 
 # --- chia-verilator-run runtime libraries ----------------------------------
-# libriscv.so IS the golden model (cluster.yaml:69-71). Recording its sha256
+# libriscv.so IS the golden model (configs/cluster.yaml, verilator node). Recording its sha256
 # here is what finally makes VerilatorRunDockerfile's "identical files"
 # invariant checkable -- see docker/compare-manifests.sh.
 file   | libriscv                    | verirun                    | chia-verilator-run /usr/local/lib; the T2a golden model                      | /usr/local/lib/libriscv.so                                                                                                                     | -            | -
