@@ -48,6 +48,24 @@ def test_smaller_sram_scores_less_energy_on_identical_counters():
     assert all(a > b for a, b in zip(e, e[1:])), e
 
 
+def test_zbu_credit_is_row_level():
+    """A finer T-B granule costs bitmap area but cannot skip MORE reads.
+
+    The scratchpad gets one skip bit per read and suppresses a whole row, so
+    granule 4 must earn exactly granule 16's energy, and both must beat off.
+    """
+    w = T.Workload.from_stats(json.load(open(os.path.join(
+        ROOT, "workload", "generated", "spmm_dnn512.json"))), dense_mode=False)
+    m = Metrics(50862, 524288, dict(COUNTERS))
+    s = BASELINE.mutate(gate_enable=True, x_resident=True, sp_capacity_kb=64,
+                        acc_capacity_kb=32)
+    e_off = T.energy_report(s, m, w, 2.0).energy_pj
+    e16 = T.energy_report(s.mutate(zbu_enable=True, granule_size=16), m, w, 2.0).energy_pj
+    e4 = T.energy_report(s.mutate(zbu_enable=True, granule_size=4), m, w, 2.0).energy_pj
+    assert e16 < e_off, (e16, e_off)
+    assert abs(e4 - e16) < 1e-6, (e4, e16)
+
+
 def main() -> int:
     fails = 0
     for name, fn in sorted(globals().items()):

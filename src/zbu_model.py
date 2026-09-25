@@ -156,6 +156,23 @@ def derived_zbu_rows(header_path: str, granule_size: int, operand: str,
     if not info.get("supported"):
         return 0, info
 
+    # ONLY WHAT THE HARDWARE CAN SKIP. The ZBU hands the scratchpad ONE `skip`
+    # bit per read (the port contract in SparseCraftSparsity.scala), and the
+    # harness-owned hook in Scratchpad.scala suppresses the WHOLE row on it. A
+    # finer granule can therefore only ever skip a row whose granules are ALL
+    # zero -- the same rows granule = DIM finds. Crediting zero sub-row granules
+    # instead (the first version of this function) paid for skipping no build
+    # can perform: runs/v2-final15 iterations 10-11 took the granule 16 -> 8 -> 4
+    # for 9.6% and 5.3% energy that did not exist, while the extra bitmap area
+    # was real. The requested granule is still validated above (T0 and area
+    # depend on it); the CREDIT is row-level.
+    dim = info["dim"]
+    if granule_size != dim:
+        row = skippable_granules(header_path, dim, operand)
+        info = dict(row, requested_granule=granule_size,
+                    requested_zero_granules=info["zero_granules"],
+                    note="credited at row level: the ZBU interface skips whole rows only")
+
     stored = info["stored_a_elements"]
     reuse = (macs_issued / stored) if stored else 0.0
     skipped_elements = info["elements_skipped_per_pass"] * reuse
